@@ -557,6 +557,16 @@ body.dragging {
   color: #10261a;
 }
 
+/* 门锁在中轴上，左右两个拉手热区紧挨着；
+   标签若都居中会叠成一团「左门:右门锁」→ 分别向两侧展开 */
+.zone.part-lockL .zone-tag {
+  transform: translate(-100%, -50%);
+}
+
+.zone.part-lockR .zone-tag {
+  transform: translate(0, -50%);
+}
+
 /* ---------- BUG: 已选压花右上角 X ---------- */
 .zone-x {
   position: absolute;

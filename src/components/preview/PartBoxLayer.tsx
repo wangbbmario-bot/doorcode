@@ -65,7 +65,7 @@ export default function PartBoxLayer({ face, sel, onPick, onClear }: Props) {
         return (
           <button
             key={b.key}
-            className={`zone part ${picked ? 'picked' : ''}`}
+            className={`zone part part-${b.key} ${picked ? 'picked' : ''}`}
             style={b.style}
             onClick={(e) => {
               e.stopPropagation()
