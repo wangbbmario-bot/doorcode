@@ -1,0 +1,21 @@
+# 依赖与构建产物
+node_modules/
+dist/
+
+# 密钥（绝对不要提交）
+.env
+.env.local
+.env.*.local
+
+# 运行时产物
+server/generated/
+
+# 原始材料包（体积大，素材成品已入库 public/assets）
+.materials/
+
+# 调试残留
+.tmp/
+
+# 系统
+.DS_Store
+*.log
