@@ -14,7 +14,8 @@
     "start": "node server/index.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "verify": "bash scripts/verify.sh"
   },
   "dependencies": {
     "express": "^5.3.0",
