@@ -10,7 +10,7 @@
 """
 import json, os, shutil, sys, re
 from concurrent.futures import ProcessPoolExecutor
-from PIL import Image
+from PIL import Image, ImageChops
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _ROOT = os.path.dirname(_HERE)
@@ -49,16 +49,23 @@ THUMB_MAX = 220
 PREVIEW_MAX = 760
 
 # 缩略图展示策略（BUG: 各类素材形状差异大，统一方框看不清）
-#   ratio  = 缩略图宽高比，None = 保持原始比例（完整显示）
-#   cover  = 裁切填满指定比例（快速识别，看局部）
-#   contain= 完整放进方框（看全貌，可能留白/细条）
+#   ratio  = 缩略图框的宽高比，None = 保持原始比例（完整显示）
+#   cover  = 裁切填满指定比例（看局部，会丢内容）
+#   pad    = 等比缩放后居中贴进指定比例的画布（内容完整，边上留白）
+#   contain= 不裁不补，保持原始比例（看全貌）
+#   trim   = 先裁掉原图四周白边，避免大片留白把主体压小
+#   maxH   = 前端格子的高度上限（相对格宽的倍数），防止极端比例撑爆一屏
 THUMB_PLAN = {
-    'face':   {'ratio': 1.0,  'mode': 'cover'},    # 门面：整门渲染图，方形取上部
-    'color':  {'ratio': 1.0,  'mode': 'cover'},    # 颜色：方形成品纹理
-    'head':   {'ratio': 4.0,  'mode': 'cover'},    # 门头：横向长条（原件 ~10:1），取中段
-    'pillar': {'ratio': 1.0,  'mode': 'cover'},    # 门柱：纵向细条（原件 ~1:7），取局部
-    'lock':   {'ratio': 1.0,  'mode': 'cover'},    # 门锁：纵向细条（原件 ~1:2.4），取局部
-    'emboss': {'ratio': None, 'mode': 'contain'},  # 压花：长条/方块都有，保持完整
+    'face':   {'ratio': 1.0,  'mode': 'cover',  'maxH': 1},
+    'color':  {'ratio': 1.0,  'mode': 'cover',  'maxH': 1},
+    'head':   {'ratio': 4.0,  'mode': 'cover',  'maxH': 1},
+    # 门柱：原件是 1:10 的细长柱，裁成方块只能看到顶部一个角（花纹全看不见）。
+    # 改成 1:4 的窄高框 + 居中裁 -> 柱身满宽，雕花/文字清晰可辨
+    'pillar': {'ratio': 0.25, 'mode': 'cover', 'trim': True, 'maxH': 4},
+    # 门锁：单个完整产品（拉手），上下裁会切掉握柄和装饰头 -> 1:2.4 框完整贴入
+    'lock':   {'ratio': 0.42, 'mode': 'pad',   'trim': True, 'maxH': 3},
+    # 压花：1324 项各种形状都有，各自保持原比例；格子高度封顶 2.5 倍格宽
+    'emboss': {'ratio': None, 'mode': 'contain', 'maxH': 2.5},
 }
 
 
@@ -87,6 +94,20 @@ def white_to_alpha(im: Image.Image) -> Image.Image:
     return rgba
 
 
+def trim_white(im, thr=245):
+    """裁掉白底产品图四周的白边，让主体在缩略图里更大"""
+    bg = Image.new('RGB', im.size, (255, 255, 255))
+    diff = ImageChops.difference(im, bg).convert('L')
+    mask = diff.point(lambda p: 255 if p > (255 - thr) else 0)
+    bbox = mask.getbbox()
+    if not bbox:
+        return im
+    x0, y0, x1, y1 = bbox
+    if (x1 - x0) < 4 or (y1 - y0) < 4:
+        return im
+    return im.crop(bbox)
+
+
 def process(cat_dir: str, out_dir: str, files: list, transparent: bool = False, ck: str = ''):
     out = []
     for fn in files:
@@ -104,6 +125,10 @@ def process(cat_dir: str, out_dir: str, files: list, transparent: bool = False, 
 
         # 缩略图：按分类策略裁切/完整显示
         plan = THUMB_PLAN.get(ck, {'ratio': 1.0, 'mode': 'cover'})
+        # trim 的分类要留一份原图给预览图用（预览图不能 trim，否则贴到门上比例会变）
+        orig = im.copy() if plan.get('trim') else im
+        if plan.get('trim'):
+            im = trim_white(im)
         cw0, ch0 = im.size
         ratio = plan['ratio']
         if ratio is None or plan['mode'] == 'contain':
@@ -111,6 +136,19 @@ def process(cat_dir: str, out_dir: str, files: list, transparent: bool = False, 
             t = im.copy()
             t.thumbnail((THUMB_MAX, THUMB_MAX), Image.LANCZOS)
             out_ratio = t.width / t.height
+        elif plan['mode'] == 'pad':
+            # 等比缩放后居中贴进目标比例的画布：内容完整，边上留白
+            target = ratio
+            box_w = THUMB_MAX
+            box_h = int(round(THUMB_MAX / target))
+            scale = min(box_w / cw0, box_h / ch0)
+            nw = max(1, int(round(cw0 * scale)))
+            nh = max(1, int(round(ch0 * scale)))
+            content = im.resize((nw, nh), Image.LANCZOS)
+            canvas = Image.new('RGB', (box_w, box_h), (255, 255, 255))
+            canvas.paste(content, ((box_w - nw) // 2, (box_h - nh) // 2))
+            t = canvas
+            out_ratio = target
         else:
             # 裁成目标比例（居中）
             target = ratio
@@ -118,16 +156,18 @@ def process(cat_dir: str, out_dir: str, files: list, transparent: bool = False, 
             if cur > target:      # 原图更宽 -> 裁左右
                 nw = int(ch0 * target)
                 t = im.crop(((cw0 - nw) // 2, 0, (cw0 - nw) // 2 + nw, ch0))
-            else:                 # 原图更高 -> 裁上下（取上段，纹样更全）
+            else:                 # 原图更高 -> 裁上下（居中裁，保住上下端）
                 nh = int(cw0 / target)
-                t = im.crop((0, 0, cw0, nh))
+                top = (ch0 - nh) // 2
+                t = im.crop((0, top, cw0, top + nh))
             t = t.resize((THUMB_MAX, int(THUMB_MAX / target)), Image.LANCZOS)
             out_ratio = ratio
         thumb_name = f'{s}.webp'
         t.save(os.path.join(out_dir, 'thumb', thumb_name), 'WEBP', quality=80, method=4)
 
         # 预览图：透明素材走 PNG（带 alpha），其余走 JPEG
-        p = im.copy()
+        # 用原图而不是 trim 后的图 —— 预览图要贴到门上/喂给 AI，必须保持原始比例
+        p = orig.copy()
         p.thumbnail((PREVIEW_MAX, PREVIEW_MAX), Image.LANCZOS)
         if transparent:
             prev_name = f'{s}.png'
@@ -169,7 +209,9 @@ def main():
                             [transparent] * len(files), [ck] * len(files))
             items = [c[0] for c in chunks]
         group_ratio = THUMB_PLAN.get(ck, {}).get('ratio') or 1.0
-        catalog[ck] = {'key': ck, 'label': label, 'items': items, 'thumbRatio': group_ratio}
+        group_maxh = THUMB_PLAN.get(ck, {}).get('maxH') or 1.0
+        catalog[ck] = {'key': ck, 'label': label, 'items': items,
+                       'thumbRatio': group_ratio, 'maxH': group_maxh}
         print(f'{label}({ck}): {len(items)} 项')
 
     with open('/Users/qi/Desktop/doorcode/public/catalog.json', 'w', encoding='utf-8') as f:

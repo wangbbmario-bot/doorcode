@@ -422,7 +422,9 @@ body.dragging {
   position: relative;
   width: 100%;
   border: none;
-  background: #efe9e2;
+  /* 白色底：门锁/门柱的缩略图是白底产品图贴进窄高框，
+     白底能让留白部分无缝衔接 */
+  background: #fff;
   padding: 0;
   cursor: pointer;
   overflow: hidden;
@@ -435,8 +437,11 @@ body.dragging {
   inset: 0;
   width: 100%;
   height: 100%;
-  object-fit: cover;
-  object-position: center top;
+  /* contain 而不是 cover：格子高度已经按素材真实比例算好了，
+     cover 会把纵向细条（门锁 1:2.4、门柱 1:4、压花长条）再裁掉一大半，
+     表现为「看不全花纹」 */
+  object-fit: contain;
+  object-position: center;
 }
 
 .cell-name {

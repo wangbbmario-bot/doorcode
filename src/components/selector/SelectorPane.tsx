@@ -86,6 +86,7 @@ export default function SelectorPane({
         items={items}
         selectedName={selectedName}
         favSet={favNames}
+        maxH={group?.maxH ?? 1}
         onPick={onPick}
         onToggleFav={onToggleFav}
         onZoom={setZoomItem}

@@ -16,6 +16,8 @@ export interface CatalogGroup {
   items: CatalogItem[]
   /** 该分类缩略图的默认宽高比 */
   thumbRatio: number
+  /** 格子高度上限（相对格宽的倍数），防止极端比例撑爆一屏 */
+  maxH?: number
 }
 
 export type Catalog = Record<string, CatalogGroup>

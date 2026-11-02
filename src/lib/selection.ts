@@ -137,9 +137,18 @@ export function computeGrid(
   return { cols, cellW }
 }
 
-/** 缩略图显示高度：横条类按比例变矮，其余正方形 */
-export function thumbHeight(cellW: number, thumbRatio: number): number {
-  return Math.round(cellW / Math.max(1, thumbRatio || 1))
+/**
+ * 缩略图显示高度
+ *
+ * 宽高比 < 1 的纵向素材（门锁 1:2.4、门柱 1:4）要按真实比例给高度，
+ * 否则格子是正方形，图片会被 CSS 的 object-fit 裁掉大半。
+ * maxH 是格高上限（相对格宽的倍数），防止 1:10 这种极端比例撑爆一屏。
+ */
+export function thumbHeight(cellW: number, thumbRatio: number, maxH = 1): number {
+  const r = thumbRatio || 1
+  const byRatio = Math.round(cellW / r)
+  if (r >= 1) return byRatio
+  return Math.min(byRatio, Math.round(cellW * maxH))
 }
 
 /** 配置清单条目（对应「我的配置」面板） */

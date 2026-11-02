@@ -14,6 +14,8 @@ interface Props {
   /** 同一分类下已选中的素材名 */
   selectedName: string | null
   favSet: Set<string>
+  /** 格子高度上限（相对格宽的倍数） */
+  maxH: number
   onPick: (item: CatalogItem) => void
   onToggleFav: (item: CatalogItem) => void
   onZoom: (item: CatalogItem) => void
@@ -29,6 +31,7 @@ export default function AssetGrid({
   items,
   selectedName,
   favSet,
+  maxH,
   onPick,
   onToggleFav,
   onZoom,
@@ -79,13 +82,13 @@ export default function AssetGrid({
     setScrollTop(0)
   }, [items])
 
-  // 行高：按当前分类里最"扁"的素材比例算
+  // 行高：按当前分类里最"扁"的素材比例算（纵向细条按 maxH 封顶）
   const rowH = useMemo(() => {
     let minRatio = Infinity
     for (const it of items) minRatio = Math.min(minRatio, it.thumbRatio || 1)
-    const maxImg = Number.isFinite(minRatio) ? thumbHeight(cellW, minRatio) : cellW
+    const maxImg = Number.isFinite(minRatio) ? thumbHeight(cellW, minRatio, maxH) : cellW
     return maxImg + NAME_H + GAP
-  }, [items, cellW])
+  }, [items, cellW, maxH])
 
   const totalRows = Math.ceil(items.length / cols)
   const { start, end } = computeWindow(
@@ -121,13 +124,13 @@ export default function AssetGrid({
                 style={{
                   position: 'absolute',
                   width: cellW,
-                  height: thumbHeight(cellW, it.thumbRatio) + NAME_H,
+                  height: thumbHeight(cellW, it.thumbRatio, maxH) + NAME_H,
                   transform: `translate(${col * (cellW + GAP)}px, ${row * rowH}px)`,
                 }}
               >
                 <AssetCell
                   item={it}
-                  imgH={thumbHeight(cellW, it.thumbRatio)}
+                  imgH={thumbHeight(cellW, it.thumbRatio, maxH)}
                   selected={selectedName === it.name}
                   fav={favSet.has(it.name)}
                   onPick={() => onPick(it)}

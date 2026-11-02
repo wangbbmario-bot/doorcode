@@ -165,7 +165,21 @@ describe('缩略图高度（BUG2/3/4/5: 各类素材形状不同）', () => {
     expect(thumbHeight(120, 4)).toBe(30)
   })
 
-  it('纵向细条不会把单元撑得过高', () => {
+  it('纵向细条不会把单元撑得过高（默认封顶 1 倍）', () => {
     expect(thumbHeight(120, 0.25)).toBe(120)
+  })
+
+  it('给了 maxH 就按真实比例给高度（门锁 1:2.4）', () => {
+    expect(thumbHeight(120, 0.42, 3)).toBe(286)
+  })
+
+  it('真实高度超过 maxH 时封顶（门柱 1:10 不会撑爆一屏）', () => {
+    // 120/0.1 = 1200 远超上限 4*120=480
+    expect(thumbHeight(120, 0.1, 4)).toBe(480)
+  })
+
+  it('maxH 不会反过来把横向素材压矮', () => {
+    expect(thumbHeight(120, 4, 1)).toBe(30)
+    expect(thumbHeight(120, 1, 4)).toBe(120)
   })
 })
