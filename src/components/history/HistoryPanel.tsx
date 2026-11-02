@@ -27,6 +27,12 @@ export default function HistoryPanel({ open, onClose, onApply }: Props) {
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState<string | null>(null)
 
+  /** 提示语统一走这里：无论成功还是失败，2.2 秒后自动消失（否则错误会一直挂在屏幕上） */
+  const flash = (text: string) => {
+    setMsg(text)
+    setTimeout(() => setMsg(null), 2200)
+  }
+
   const reload = async (which: 'active' | 'trash') => {
     setLoading(true)
     try {
@@ -56,11 +62,10 @@ export default function HistoryPanel({ open, onClose, onApply }: Props) {
     setBusy(true)
     try {
       await trashHistory(it.id)
-      setMsg('已移入回收站')
-      setTimeout(() => setMsg(null), 2200)
+      flash('已移入回收站')
       reload('active')
     } catch (e) {
-      setMsg(e instanceof Error ? e.message : String(e))
+      flash(e instanceof Error ? e.message : String(e))
     } finally {
       setBusy(false)
     }
@@ -70,11 +75,10 @@ export default function HistoryPanel({ open, onClose, onApply }: Props) {
     setBusy(true)
     try {
       await restoreHistory(it.id)
-      setMsg('已恢复')
-      setTimeout(() => setMsg(null), 2200)
+      flash('已恢复')
       reload('trash')
     } catch (e) {
-      setMsg(e instanceof Error ? e.message : String(e))
+      flash(e instanceof Error ? e.message : String(e))
     } finally {
       setBusy(false)
     }
@@ -85,11 +89,10 @@ export default function HistoryPanel({ open, onClose, onApply }: Props) {
     setBusy(true)
     try {
       await purgeHistory(it.id)
-      setMsg('已彻底删除')
-      setTimeout(() => setMsg(null), 2200)
+      flash('已彻底删除')
       reload('trash')
     } catch (e) {
-      setMsg(e instanceof Error ? e.message : String(e))
+      flash(e instanceof Error ? e.message : String(e))
     } finally {
       setBusy(false)
     }

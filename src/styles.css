@@ -108,6 +108,9 @@ body.dragging {
   font-weight: 600;
   color: var(--bronze-hi);
   letter-spacing: 0.5px;
+  /* 窄屏下不能被压成竖排一个字一行 */
+  white-space: nowrap;
+  flex: 0 0 auto;
 }
 
 .face-name {
@@ -117,6 +120,8 @@ body.dragging {
   border: 1px solid var(--line);
   color: var(--text-dim);
   font-size: 12px;
+  white-space: nowrap;
+  flex: 0 0 auto;
 }
 
 .zone-toggle {
@@ -128,6 +133,8 @@ body.dragging {
   font-size: 12px;
   cursor: pointer;
   user-select: none;
+  white-space: nowrap;
+  flex: 0 0 auto;
 }
 
 .stage-area {
@@ -174,6 +181,10 @@ body.dragging {
 /* 压花槽位热区 */
 .zone {
   position: absolute;
+  /* 层级：压花热区 1 < 部件选框 3 < 取消按钮 4
+     门锁选框在中轴上，必然被中央门扇的压花「中」区整块盖住，
+     没有 z-index 时靠 DOM 顺序叠放 → 门锁永远点不到 */
+  z-index: 1;
   border: 1.5px dashed rgba(232, 179, 131, 0.45);
   background: rgba(232, 179, 131, 0.06);
   padding: 0;
@@ -523,6 +534,9 @@ body.dragging {
 
 /* ---------- BUG: 门头/门柱/门锁 可选框 ---------- */
 .zone.part {
+  /* 盖在压花热区之上：门锁选框与中央门扇的压花「中」区在几何上必然重叠，
+     不提层级就点不到门锁（门锁宽约 5px，被盖住后整条都是死区） */
+  z-index: 3;
   border-style: solid;
   border-color: rgba(111, 191, 138, 0.5);
   background: rgba(111, 191, 138, 0.07);
@@ -560,7 +574,7 @@ body.dragging {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  z-index: 2;
+  z-index: 4;
 }
 
 .zone-x:hover {
@@ -764,7 +778,12 @@ body.dragging {
 .ci-detail {
   color: var(--ok);
   font-size: 11px;
-  flex: 0 0 auto;
+  /* 可收缩 + 省略号：窄屏下不要把浮层撑出横向滚动条 */
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   background: rgba(111, 191, 138, 0.14);
   border-radius: 4px;
   padding: 1px 6px;
@@ -829,6 +848,10 @@ body.dragging {
   border-radius: 999px;
   padding: 2px 9px;
   white-space: nowrap;
+  /* 空间不够时截断，不要把别的元素挤出可视区 */
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .zone-toggle {
@@ -841,7 +864,7 @@ body.dragging {
   top: 6px;
   left: 6px;
   z-index: 15;
-  width: min(252px, 48%);
+  width: min(252px, 72%);
   max-width: calc(100% - 12px);
   max-height: calc(100% - 12px);
   display: flex;
