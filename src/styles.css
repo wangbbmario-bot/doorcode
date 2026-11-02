@@ -17,6 +17,13 @@
   -webkit-tap-highlight-color: transparent;
 }
 
+/* <button> 的 UA 默认样式是 2px outset buttonborder，
+   深色背景上 outset 的上边会被渲染成一条亮白线。
+   全局兜底重置，各按钮类自己再按需声明 border。 */
+button {
+  border: 0;
+}
+
 html,
 body,
 #root {
@@ -893,6 +900,9 @@ body.dragging {
   gap: 7px;
   padding: 7px 9px;
   background: rgba(45, 35, 28, 0.45);
+  /* 必须显式重置 border：<button> 的 UA 默认样式是 2px outset buttonborder，
+     深色背景上 outset 的上边会被渲染成一条亮白线（这里只重置会漏掉上/左/右三边） */
+  border: 0;
   border-bottom: 1px solid rgba(232, 179, 131, 0.22);
   cursor: pointer;
   user-select: none;

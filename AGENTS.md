@@ -200,6 +200,11 @@ src/
 6. **窄容器里 flex 子项会被压成竖排一个字一行**：标题、品牌、chip 都加
    `white-space:nowrap` + `flex:0 0 auto`；要能截断的（`.sym-note` / `.ci-detail`）
    用 `flex:0 1 auto` + `min-width:0` + 省略号，否则会把浮层撑出横向滚动条。
+7. **`<button>` 的 UA 默认边框是 `2px outset buttonborder`**，
+   深色背景上 `outset` 的上边会渲染成一条**亮白线**。
+   只写 `border-bottom` 没用 —— 长手属性只覆盖下边，上/左/右仍是默认的 `outset`。
+   修法：`border: 0` 显式重置（已加全局兜底 `button { border: 0 }`）。
+   排查：直接量像素 —— 顶边若亮度 >150 而其余边很暗，就是它。
 
 ### B. React 状态类
 
