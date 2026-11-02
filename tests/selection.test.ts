@@ -104,15 +104,17 @@ describe('虚拟滚动窗口（BUG: 上千张缩略图不能一次性挂载）',
   const COLS = 6
   const ROW_H = 141
   const ROWS = Math.ceil(TOTAL / COLS)
+  /** 等高行的 top 前缀和 */
+  const evenTops = Array.from({ length: ROWS + 1 }, (_, i) => i * ROW_H)
 
   it('首屏只渲染视口附近的节点', () => {
-    const { start, end } = computeWindow(0, 600, ROW_H, ROWS, COLS, TOTAL)
+    const { start, end } = computeWindow(0, 600, evenTops, COLS, TOTAL)
     expect(end - start).toBeLessThan(60)
     expect(start).toBe(0)
   })
 
   it('滚动到中段时窗口跟着移动', () => {
-    const { start, end } = computeWindow(30000, 600, ROW_H, ROWS, COLS, TOTAL)
+    const { start, end } = computeWindow(30000, 600, evenTops, COLS, TOTAL)
     expect(start).toBeGreaterThan(0)
     expect(end - start).toBeLessThan(80)
     expect(end).toBeLessThanOrEqual(TOTAL)
@@ -120,7 +122,7 @@ describe('虚拟滚动窗口（BUG: 上千张缩略图不能一次性挂载）',
 
   it('滚到底部时窗口到达末尾且不越界', () => {
     const totalH = ROWS * ROW_H
-    const { start, end } = computeWindow(totalH, 600, ROW_H, ROWS, COLS, TOTAL)
+    const { start, end } = computeWindow(totalH, 600, evenTops, COLS, TOTAL)
     expect(end).toBe(TOTAL)
     expect(start).toBeLessThanOrEqual(TOTAL)
     expect(end - start).toBeLessThan(80)
@@ -128,13 +130,26 @@ describe('虚拟滚动窗口（BUG: 上千张缩略图不能一次性挂载）',
 
   it('任何位置的渲染节点数都远小于总量', () => {
     for (const top of [0, 5000, 20000, 40000, 60000]) {
-      const { start, end } = computeWindow(top, 600, ROW_H, ROWS, COLS, TOTAL)
+      const { start, end } = computeWindow(top, 600, evenTops, COLS, TOTAL)
       expect(end - start).toBeLessThan(TOTAL / 10)
     }
   })
 
   it('空集合不报错', () => {
-    expect(computeWindow(0, 600, ROW_H, 0, COLS, 0)).toEqual({ start: 0, end: 0 })
+    expect(computeWindow(0, 600, [0], COLS, 0)).toEqual({ start: 0, end: 0 })
+  })
+
+  it('可变行高：按每行实际高度定位，不会跳行', () => {
+    // 三行，高度分别 100 / 300 / 100
+    const tops = [0, 100, 400, 500]
+    const { start } = computeWindow(150, 200, tops, 1, 3, 0)
+    expect(start).toBe(1) // 落在第 2 行（高度 300 的那行）
+  })
+
+  it('可变行高：矮行不再占用高行的高度（不留整行空白）', () => {
+    const tops = [0, 100, 130, 160] // 行高 100 / 30 / 30
+    expect(computeWindow(105, 30, tops, 1, 3, 0).start).toBe(1)
+    expect(computeWindow(135, 30, tops, 1, 3, 0).start).toBe(2)
   })
 })
 

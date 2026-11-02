@@ -82,23 +82,33 @@ export default function AssetGrid({
     setScrollTop(0)
   }, [items])
 
-  // 行高：按当前分类里最"扁"的素材比例算（纵向细条按 maxH 封顶）
-  const rowH = useMemo(() => {
-    let minRatio = Infinity
-    for (const it of items) minRatio = Math.min(minRatio, it.thumbRatio || 1)
-    const maxImg = Number.isFinite(minRatio) ? thumbHeight(cellW, minRatio, maxH) : cellW
-    return maxImg + NAME_H + GAP
-  }, [items, cellW, maxH])
+  // 行高：按**每行实际的最高格子**算。
+  // 压花素材比例从 0.1 到 3.6 都有，若行高统一按最扁的算，
+  // 矮素材那一行下方会整块留白（用户看到的「空了一行」）。
+  const rowHeights = useMemo(() => {
+    const rows = Math.ceil(items.length / cols)
+    const hs: number[] = []
+    for (let r = 0; r < rows; r++) {
+      let mx = 0
+      for (let c = 0; c < cols; c++) {
+        const it = items[r * cols + c]
+        if (!it) break
+        mx = Math.max(mx, thumbHeight(cellW, it.thumbRatio, maxH))
+      }
+      hs.push(mx + NAME_H + GAP)
+    }
+    return hs
+  }, [items, cols, cellW, maxH])
 
-  const totalRows = Math.ceil(items.length / cols)
-  const { start, end } = computeWindow(
-    scrollTop,
-    viewportH,
-    rowH,
-    totalRows,
-    cols,
-    items.length,
-  )
+  // 每行 top 的前缀和（末位 = 总高度）
+  const rowTops = useMemo(() => {
+    const tops = [0]
+    for (const h of rowHeights) tops.push(tops[tops.length - 1] + h)
+    return tops
+  }, [rowHeights])
+
+  const totalRows = rowHeights.length
+  const { start, end } = computeWindow(scrollTop, viewportH, rowTops, cols, items.length)
   const visible = items.slice(start, end)
 
   return (
@@ -111,7 +121,7 @@ export default function AssetGrid({
       >
         <div
           className="grid"
-          style={{ height: totalRows * rowH, gridTemplateColumns: `repeat(${cols}, ${cellW}px)` }}
+          style={{ height: rowTops[totalRows] ?? 0, gridTemplateColumns: `repeat(${cols}, ${cellW}px)` }}
         >
           {visible.map((it, i) => {
             const idx = start + i
@@ -125,7 +135,7 @@ export default function AssetGrid({
                   position: 'absolute',
                   width: cellW,
                   height: thumbHeight(cellW, it.thumbRatio, maxH) + NAME_H,
-                  transform: `translate(${col * (cellW + GAP)}px, ${row * rowH}px)`,
+                  transform: `translate(${col * (cellW + GAP)}px, ${rowTops[row] ?? 0}px)`,
                 }}
               >
                 <AssetCell

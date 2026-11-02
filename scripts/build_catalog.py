@@ -8,7 +8,7 @@
 
 缩略图用于选择网格，预览图用于实时合成与 AI 生图参考。
 """
-import json, os, shutil, sys, re
+import json, math, os, shutil, sys, re
 from concurrent.futures import ProcessPoolExecutor
 from PIL import Image, ImageChops
 
@@ -65,7 +65,8 @@ THUMB_PLAN = {
     # 门锁：单个完整产品（拉手），上下裁会切掉握柄和装饰头 -> 1:2.4 框完整贴入
     'lock':   {'ratio': 0.42, 'mode': 'pad',   'trim': True, 'maxH': 3},
     # 压花：1324 项各种形状都有，各自保持原比例；格子高度封顶 2.5 倍格宽
-    'emboss': {'ratio': None, 'mode': 'contain', 'maxH': 2.5},
+    # trim：15.5% 的压花是带白边的电商产品图，不去白边缩略图顶部会有一条白带
+    'emboss': {'ratio': None, 'mode': 'contain', 'trim': True, 'maxH': 2.5},
 }
 
 
@@ -208,6 +209,14 @@ def main():
             chunks = ex.map(process, [cat_dir] * len(files), [out_dir] * len(files), [[f] for f in files],
                             [transparent] * len(files), [ck] * len(files))
             items = [c[0] for c in chunks]
+        if ck == 'emboss':
+            # 压花排序：1324 项形状差异 30 倍，按文件名排会让同一行高的矮的混排，
+            # 行内下方留一大块空白。
+            # 按「与方形的接近度」排（|log(比例)| 升序）：
+            #   - 近方形的浮雕（最常用、最好看）排最前
+            #   - 极细的「子门」件排最后（它们在网格里只有十几像素宽，看不清）
+            #   - 同一行内比例接近 -> 高度接近 -> 行内几乎不留白
+            items.sort(key=lambda it: abs(math.log(it['thumbRatio'] or 1)))
         group_ratio = THUMB_PLAN.get(ck, {}).get('ratio') or 1.0
         group_maxh = THUMB_PLAN.get(ck, {}).get('maxH') or 1.0
         catalog[ck] = {'key': ck, 'label': label, 'items': items,

@@ -103,24 +103,44 @@ export function switchFace(sel: Selection, faceKey: string): Selection {
 }
 
 /**
- * 虚拟滚动窗口计算
- * 返回可见区间 [start, end)（items 下标区间）
+ * 找 y 落在哪一行（rowTops 是每行 top 的前缀和，长度 = 行数 + 1）
+ * 返回**最后一个** rowTops[r] <= y 的行号；y 超出总高度时返回行数
+ */
+export function findRow(rowTops: number[], y: number): number {
+  let lo = 0
+  let hi = rowTops.length - 1
+  while (lo < hi) {
+    const mid = (lo + hi + 1) >> 1
+    if (rowTops[mid] <= y) lo = mid
+    else hi = mid - 1
+  }
+  return lo
+}
+
+/**
+ * 虚拟滚动窗口计算（支持**可变行高**）
+ *
+ * 压花素材形状差异极大（比例 0.1~3.6），如果行高固定按最扁的算，
+ * 矮素材那一行下方会整块留白（表现为「空了一行」）。
+ * 所以行高按**每行实际的最高格子**算，rowTops 用前缀和定位。
+ *
+ * @param rowTops 每行 top 的前缀和，rowTops[r] = 第 r 行 top，末位 = 总高度
  */
 export function computeWindow(
   scrollTop: number,
   viewportH: number,
-  rowH: number,
-  totalRows: number,
+  rowTops: number[],
   cols: number,
   total: number,
   overscan = 3,
 ): { start: number; end: number } {
-  if (rowH <= 0 || total <= 0) return { start: 0, end: 0 }
-  const firstRow = Math.max(0, Math.floor(scrollTop / rowH) - overscan)
-  const lastRow = Math.min(totalRows, Math.ceil((scrollTop + viewportH) / rowH) + overscan)
-  const start = firstRow * cols
-  const end = Math.min(total, lastRow * cols)
-  return { start, end }
+  const totalRows = rowTops.length - 1
+  if (totalRows <= 0 || total <= 0 || cols <= 0) return { start: 0, end: 0 }
+  const firstVisible = findRow(rowTops, scrollTop)
+  const lastVisible = findRow(rowTops, scrollTop + viewportH)
+  const firstRow = Math.max(0, firstVisible - overscan)
+  const lastRow = Math.min(totalRows, lastVisible + overscan)
+  return { start: firstRow * cols, end: Math.min(total, lastRow * cols) }
 }
 
 /** 按容器宽度算列数与列宽 */
