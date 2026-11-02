@@ -134,6 +134,7 @@ body.dragging {
   position: relative;
   flex: 1 1 auto;
   min-height: 0;
+  min-width: 0;
   display: flex;
   flex-direction: column;
 }
@@ -627,6 +628,8 @@ body.dragging {
 .zoom-title {
   font-weight: 600;
   color: var(--bronze-hi);
+  /* flex item 默认 min-width:auto，会被长标题撑破并把右侧按钮挤出可视区 */
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -651,6 +654,7 @@ body.dragging {
 .zoom-img {
   flex: 1 1 auto;
   min-height: 0;
+  min-width: 0;
   overflow: auto;
   background: #efe9e2;
   display: flex;
@@ -910,6 +914,7 @@ body.dragging {
 .config-float-body {
   flex: 1 1 auto;
   min-height: 0;
+  min-width: 0;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
 }
@@ -990,6 +995,7 @@ body.dragging {
 .history-grid {
   flex: 1 1 auto;
   min-height: 0;
+  min-width: 0;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   display: grid;
@@ -1062,6 +1068,7 @@ body.dragging {
 .history-detail-img {
   flex: 1 1 auto;
   min-height: 0;
+  min-width: 0;
   overflow: auto;
   background: #efe9e2;
   display: flex;
@@ -1137,6 +1144,11 @@ body.dragging {
 .history-msg {
   color: var(--ok);
   font-size: 12px;
+  /* 提示语太长时不能把右侧关闭按钮顶出可视区 */
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .history-deleted-tag {
