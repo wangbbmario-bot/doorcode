@@ -1,4 +1,5 @@
 import { useCallback, useMemo } from 'react'
+import { apiFetch } from './lib/api'
 import { AppStateProvider, useAppDispatch, useAppState } from './state/AppStateProvider'
 import { actions, partToCategory } from './state/reducer'
 import { usePreview } from './hooks/usePreview'
@@ -64,7 +65,7 @@ function Shell() {
     if (!state.result) return
     const name = `XDD-铜门-${state.sel.face}-${Date.now()}.jpg`
     try {
-      const blob = await (await fetch(state.result)).blob()
+      const blob = await (await apiFetch(state.result)).blob()
       const file = new File([blob], name, { type: 'image/jpeg' })
       const nav = navigator as Navigator & {
         canShare?: (d: ShareData) => boolean

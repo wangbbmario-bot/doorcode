@@ -1,4 +1,5 @@
 import type { ZoneKey } from '../types'
+import { apiFetch } from './api'
 
 export interface HistoryConfig {
   face?: string
@@ -24,7 +25,7 @@ export interface HistoryItem {
 }
 
 async function call(url: string, init?: RequestInit) {
-  const res = await fetch(url, init)
+  const res = await apiFetch(url, init)
   const json = await res.json().catch(() => ({}))
   if (!res.ok) throw new Error(json?.error || `请求失败 ${res.status}`)
   return json

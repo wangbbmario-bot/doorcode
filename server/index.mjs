@@ -32,6 +32,30 @@ const ARK_KEY = process.env.ARK_API_KEY || ''
 const ARK_MODEL = process.env.ARK_MODEL || 'doubao-seedream-5-0-flash-260915'
 const ARK_ENDPOINT = process.env.ARK_ENDPOINT || 'https://ark.cn-beijing.volces.com/api/v3/images/generations'
 
+/**
+ * 访问口令（可选）
+ *
+ * 部署到公网后，/api/generate 就是一个**会烧 ARK 额度**的公开接口，
+ * /api/history 会暴露所有人的效果图与配置记录。
+ * 设置 SITE_PASSWORD 后全站需要口令；不设置则不启用（本地开发无感）。
+ *
+ * 两种传法：请求头 x-site-password，或 cookie dk_k。
+ * 前端会把 URL 上的 ?k=口令 存进 localStorage 并从地址栏抹掉。
+ */
+const SITE_PASSWORD = process.env.SITE_PASSWORD || ''
+
+function authOk(req) {
+  if (!SITE_PASSWORD) return true
+  const h = req.get('x-site-password')
+  if (h && h === SITE_PASSWORD) return true
+  const cookie = req.headers.cookie || ''
+  for (const part of cookie.split(';')) {
+    const [k, ...v] = part.trim().split('=')
+    if (k === 'dk_k' && decodeURIComponent(v.join('=')) === SITE_PASSWORD) return true
+  }
+  return false
+}
+
 fs.mkdirSync(OUT_DIR, { recursive: true })
 
 const { readHistory, readTrash, pushHistory, softDeleteHistory, restoreHistory, purgeHistory } =
@@ -39,6 +63,12 @@ const { readHistory, readTrash, pushHistory, softDeleteHistory, restoreHistory, 
 
 const app = express()
 app.use(express.json({ limit: '64mb' }))
+
+// 访问口令闸门（未设置 SITE_PASSWORD 时直接放行）
+app.use((req, res, next) => {
+  if (authOk(req)) return next()
+  res.status(401).json({ error: '需要访问口令', needAuth: true })
+})
 
 app.get('/api/health', (_req, res) => {
   res.json({ ok: true, model: ARK_MODEL, keyConfigured: Boolean(ARK_KEY) })

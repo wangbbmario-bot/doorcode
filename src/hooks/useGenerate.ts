@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react'
+import { apiFetch } from '../lib/api'
 import type { Catalog, FaceSpec, Selection, Slot } from '../types'
 import { buildPrompt, collectRefs, composePreview } from '../lib/compose'
 import { useAppDispatch } from '../state/AppStateProvider'
@@ -34,7 +35,7 @@ export function useGenerate(
       const refs = await collectRefs(sel, catalog)
       const refIndex = new Map(refs.map((r, i) => [r.key, i + 2]))
       const prompt = buildPrompt(face, sel, catalog, refIndex)
-      const res = await fetch('/api/generate', {
+      const res = await apiFetch('/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
