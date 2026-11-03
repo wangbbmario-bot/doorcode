@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { Catalog, CatalogItem } from '../../types'
 import { assetUrl } from '../../lib/data'
 import SearchBar from './SearchBar'
@@ -58,17 +58,39 @@ export default function SelectorPane({
   const group = catalog[activeCat]
   // 大图预览是本组件的局部 UI 状态，组件自治，不上抛
   const [zoomItem, setZoomItem] = useState<CatalogItem | null>(null)
+  // 二级分类（压花的尺寸档）：null = 全部，-1 = 收藏
+  const [bucket, setBucket] = useState<number | null>(null)
+
+  // 切换主分类时回到「全部」
+  useEffect(() => {
+    setBucket(null)
+  }, [activeCat])
+
+  const buckets = group?.buckets
+  const favCount = useMemo(() => {
+    if (!group) return 0
+    let n = 0
+    for (const it of group.items) if (favNames.has(it.name)) n++
+    return n
+  }, [group, favNames])
 
   const items = useMemo(() => {
     if (!group) return []
     const q = query.trim()
-    const matched = q ? group.items.filter((i) => fuzzy(i.name, q)) : group.items
+    let matched = q ? group.items.filter((i) => fuzzy(i.name, q)) : group.items
+
+    // 二级分类过滤
+    if (bucket === -1) {
+      matched = matched.filter((i) => favNames.has(i.name))
+    } else if (bucket !== null) {
+      matched = matched.filter((i) => i.sizeBucket === bucket)
+    }
+
     if (!favNames.size) return matched
 
-    // 收藏项不能直接抽到列表最前 —— 那样会让「收藏的小方块」和「长条」挤在同一行，
-    // 行内就不是同一种类型了，看着很乱。
-    // 改成：**含收藏的整个尺寸档整体提前**，收藏项在本档内排最前。
-    // 效果：收藏的小方块 -> 前面几行全是小方块；收藏的长条 -> 长条那一档也整体提前。
+    // 收藏项排**它自己那一档的最前**（不是整个列表最前）：
+    // 抽到列表最前会让「收藏的小方块」和「长条」挤在同一行，行内就不是同一种类型了。
+    // 有了二级分类后，用户可以直接切到对应尺寸档去找，收藏项在档内排最前就够用了。
     const segs: { b?: number; fav: CatalogItem[]; rest: CatalogItem[] }[] = []
     for (const it of matched) {
       const last = segs[segs.length - 1]
@@ -79,21 +101,10 @@ export default function SelectorPane({
       if (favNames.has(it.name)) seg.fav.push(it)
       else seg.rest.push(it)
     }
-    // Set 的迭代顺序 = 收藏时间顺序；多个含收藏的档里，**最近收藏的排最前**，
-    // 这样刚收藏的那一档立刻能看见。
-    const favTime = new Map<string, number>()
-    let t = 0
-    for (const n of favNames) favTime.set(n, t++)
-    const firstFavTime = (s: { fav: CatalogItem[] }) =>
-      s.fav.reduce((max, it) => Math.max(max, favTime.get(it.name) ?? -1), -1)
-
-    const withFav = segs.filter((s) => s.fav.length).sort((a, b) => firstFavTime(b) - firstFavTime(a))
-    const without = segs.filter((s) => !s.fav.length)
     const out: CatalogItem[] = []
-    for (const s of withFav) out.push(...s.fav, ...s.rest)
-    for (const s of without) out.push(...s.rest)
+    for (const s of segs) out.push(...s.fav, ...s.rest)
     return out
-  }, [group, query, favNames])
+  }, [group, query, favNames, bucket])
 
   return (
     <div className="selector-pane">
@@ -105,6 +116,33 @@ export default function SelectorPane({
           {slotCount > 0
             ? `点击缩略图，将压花应用到已选的 ${slotCount} 个位置；点右上角放大镜看大图`
             : '先在左侧点击门上的上/中/下位置，再选择压花'}
+        </div>
+      )}
+
+      {buckets && buckets.length > 0 && (
+        <div className="sub-tabs">
+          <button
+            className={`sub-tab ${bucket === null ? 'on' : ''}`}
+            onClick={() => setBucket(null)}
+          >
+            全部 <b>{group?.items.length ?? 0}</b>
+          </button>
+          <button
+            className={`sub-tab ${bucket === -1 ? 'on' : ''}`}
+            onClick={() => setBucket(-1)}
+            disabled={favCount === 0}
+          >
+            收藏 <b>{favCount}</b>
+          </button>
+          {buckets.map((b) => (
+            <button
+              key={b.id}
+              className={`sub-tab ${bucket === b.id ? 'on' : ''}`}
+              onClick={() => setBucket(b.id)}
+            >
+              {b.name} <b>{b.count}</b>
+            </button>
+          ))}
         </div>
       )}
 

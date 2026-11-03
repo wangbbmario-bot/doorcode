@@ -255,6 +255,32 @@ def emboss_sort_key(r, maxh=2.5):
     return (1, b, -w)
 
 
+def bucket_display_size(r, maxh=2.5):
+    """素材在格子里实际显示的宽高（单位 = 格宽）"""
+    w = min(1.0, maxh * r)          # 宽度：满宽或按高度受限
+    h = min(maxh, 1.0 / r)          # 高度：按比例或封顶
+    return w, h
+
+
+def bucket_name(w, h):
+    """按**显示出来的样子**起名（用户看到的是图案在格子里的宽高）"""
+    if w >= 0.95:
+        if h >= 1.8:
+            return '大竖板'
+        if h >= 1.4:
+            return '竖板'
+        if h >= 1.0:
+            return '方板'
+        return '横板'
+    if w >= 0.65:
+        return '窄条'
+    if w >= 0.42:
+        return '细条'
+    if w >= 0.2:
+        return '极细条'
+    return '线状条'
+
+
 def sort_emboss(items, maxh=2.5, min_bucket=25):
     """压花按尺寸分档排序；项数太少的档自动并入前一档，避免出现碎档。
 
@@ -279,6 +305,22 @@ def sort_emboss(items, maxh=2.5, min_bucket=25):
     for k, it in keyed:
         it['sizeBucket'] = remap[k[:2]]
         out.append(it)
+    return out
+
+
+def emboss_buckets(items, maxh=2.5):
+    """统计每个尺寸档的名称和项数（给前端二级分类栏用）"""
+    groups = {}
+    for it in items:
+        groups.setdefault(it['sizeBucket'], []).append(it)
+    out = []
+    for bid in sorted(groups):
+        g = groups[bid]
+        sizes = sorted(bucket_display_size(it['thumbRatio'] or 1.0, maxh) for it in g)
+        # 用中位数：档内尺寸有波动，用 max/min 会把「窄条」误判成「满宽」
+        w = sizes[len(sizes) // 2][0]
+        h = sizes[len(sizes) // 2][1]
+        out.append({'id': bid, 'name': bucket_name(w, h), 'count': len(g)})
     return out
 
 
@@ -312,6 +354,7 @@ def main():
             items = sort_emboss(items, maxh)
         group_ratio = THUMB_PLAN.get(ck, {}).get('ratio') or 1.0
         group_maxh = THUMB_PLAN.get(ck, {}).get('maxH') or 1.0
+        buckets = emboss_buckets(items, group_maxh) if ck == 'emboss' else None
         # 资源 URL 加内容版本号：素材重建后内容变了但文件名没变，
         # 浏览器会继续用缓存里的旧图（表现为「改了还是有白边」）。
         # 版本号按分类算 —— 只有真正变了的分类才需要重新下载。
@@ -324,7 +367,10 @@ def main():
             it['prev'] = f"{it['prev']}?v={version}"
         catalog[ck] = {'key': ck, 'label': label, 'items': items,
                        'thumbRatio': group_ratio, 'maxH': group_maxh}
-        print(f'{label}({ck}): {len(items)} 项  v={version}')
+        if buckets:
+            catalog[ck]['buckets'] = buckets
+        print(f'{label}({ck}): {len(items)} 项  v={version}'
+              + (f'  {len(buckets)} 档' if buckets else ''))
 
     with open('/Users/qi/Desktop/doorcode/public/catalog.json', 'w', encoding='utf-8') as f:
         json.dump(catalog, f, ensure_ascii=False, separators=(',', ':'))

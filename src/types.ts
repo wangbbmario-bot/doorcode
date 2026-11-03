@@ -12,6 +12,13 @@ export interface CatalogItem {
   sizeBucket?: number
 }
 
+export interface CatalogBucket {
+  id: number
+  /** 尺寸档名称（大竖板 / 窄条 …） */
+  name: string
+  count: number
+}
+
 export interface CatalogGroup {
   key: string
   label: string
@@ -20,6 +27,8 @@ export interface CatalogGroup {
   thumbRatio: number
   /** 格子高度上限（相对格宽的倍数），防止极端比例撑爆一屏 */
   maxH?: number
+  /** 二级分类（目前只有压花有，按尺寸档） */
+  buckets?: CatalogBucket[]
 }
 
 export type Catalog = Record<string, CatalogGroup>
