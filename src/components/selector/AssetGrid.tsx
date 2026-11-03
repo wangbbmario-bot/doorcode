@@ -149,6 +149,15 @@ export default function AssetGrid({
             const idx = start + i
             const row = Math.floor(idx / cols)
             const col = idx % cols
+            // 行内档位对齐：一行只显示**行首那一档**的类型，
+            // 遇到别的档就整行留空（保证「一行只显示一种类型」，
+            // 档与档之间的铜色分隔线已经标出来了）。
+            const rowFirst = items[row * cols]
+            const mixed =
+              rowFirst?.sizeBucket !== undefined &&
+              it.sizeBucket !== undefined &&
+              rowFirst.sizeBucket !== it.sizeBucket
+            if (mixed) return null
             return (
               <div
                 key={it.name}

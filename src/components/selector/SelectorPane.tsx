@@ -63,10 +63,36 @@ export default function SelectorPane({
     if (!group) return []
     const q = query.trim()
     const matched = q ? group.items.filter((i) => fuzzy(i.name, q)) : group.items
-    // 收藏的排前面
-    const fav = matched.filter((i) => favNames.has(i.name))
-    const rest = matched.filter((i) => !favNames.has(i.name))
-    return [...fav, ...rest]
+    if (!favNames.size) return matched
+
+    // 收藏项不能直接抽到列表最前 —— 那样会让「收藏的小方块」和「长条」挤在同一行，
+    // 行内就不是同一种类型了，看着很乱。
+    // 改成：**含收藏的整个尺寸档整体提前**，收藏项在本档内排最前。
+    // 效果：收藏的小方块 -> 前面几行全是小方块；收藏的长条 -> 长条那一档也整体提前。
+    const segs: { b?: number; fav: CatalogItem[]; rest: CatalogItem[] }[] = []
+    for (const it of matched) {
+      const last = segs[segs.length - 1]
+      if (!last || last.b !== it.sizeBucket) {
+        segs.push({ b: it.sizeBucket, fav: [], rest: [] })
+      }
+      const seg = segs[segs.length - 1]
+      if (favNames.has(it.name)) seg.fav.push(it)
+      else seg.rest.push(it)
+    }
+    // Set 的迭代顺序 = 收藏时间顺序；多个含收藏的档里，**最近收藏的排最前**，
+    // 这样刚收藏的那一档立刻能看见。
+    const favTime = new Map<string, number>()
+    let t = 0
+    for (const n of favNames) favTime.set(n, t++)
+    const firstFavTime = (s: { fav: CatalogItem[] }) =>
+      s.fav.reduce((max, it) => Math.max(max, favTime.get(it.name) ?? -1), -1)
+
+    const withFav = segs.filter((s) => s.fav.length).sort((a, b) => firstFavTime(b) - firstFavTime(a))
+    const without = segs.filter((s) => !s.fav.length)
+    const out: CatalogItem[] = []
+    for (const s of withFav) out.push(...s.fav, ...s.rest)
+    for (const s of without) out.push(...s.rest)
+    return out
   }, [group, query, favNames])
 
   return (
