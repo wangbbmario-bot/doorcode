@@ -8,6 +8,8 @@ export interface CatalogItem {
   ratio: number
   /** 缩略图本身的宽高比（构建时按分类策略裁切） */
   thumbRatio: number
+  /** 尺寸档号：压花按显示尺寸分档，同档的项大小相近（构建时排序） */
+  sizeBucket?: number
 }
 
 export interface CatalogGroup {

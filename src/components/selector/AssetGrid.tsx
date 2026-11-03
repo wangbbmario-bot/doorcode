@@ -111,6 +111,28 @@ export default function AssetGrid({
   const { start, end } = computeWindow(scrollTop, viewportH, rowTops, cols, items.length)
   const visible = items.slice(start, end)
 
+  // 尺寸档：每档的第一项加一条分隔线，让人一眼看出分类边界
+  const bucketStarts = useMemo(() => {
+    const s = new Set<number>()
+    let prev: number | undefined
+    items.forEach((it, i) => {
+      const b = it.sizeBucket
+      if (b !== undefined && b !== prev) {
+        s.add(i)
+        prev = b
+      }
+    })
+    return s
+  }, [items])
+
+  const bucketTotal = useMemo(() => {
+    const set = new Set<number>()
+    for (const it of items) if (it.sizeBucket !== undefined) set.add(it.sizeBucket)
+    return set.size
+  }, [items])
+
+  const curBucket = visible.find((it) => it.sizeBucket !== undefined)?.sizeBucket
+
   return (
     <>
       <div
@@ -130,7 +152,9 @@ export default function AssetGrid({
             return (
               <div
                 key={it.name}
-                className={`cell cell-pos ${selectedName === it.name ? 'sel' : ''}`}
+                className={`cell cell-pos ${selectedName === it.name ? 'sel' : ''} ${
+                  bucketStarts.has(idx) ? 'bkt-start' : ''
+                }`}
                 style={{
                   position: 'absolute',
                   width: cellW,
@@ -156,6 +180,9 @@ export default function AssetGrid({
 
       <div className="grid-foot">
         共 {items.length} 项 · {cols} 列 · 已渲染 {visible.length} 个节点
+        {bucketTotal > 1 && curBucket !== undefined && (
+          <span className="grid-bucket">第 {curBucket + 1}/{bucketTotal} 类</span>
+        )}
       </div>
     </>
   )

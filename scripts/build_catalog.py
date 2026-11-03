@@ -237,6 +237,51 @@ def process(cat_dir: str, out_dir: str, files: list, transparent: bool = False, 
     return out
 
 
+def emboss_sort_key(r, maxh=2.5):
+    """压花的分档键：按「显示尺寸」分档，大小相近的集中在一档。
+
+    格子高度封顶在 maxh 倍格宽，所以显示尺寸有两个维度：
+      段 A（比例 >= 1/maxh，格子满宽）—— 按**显示高度**分档，从大到小
+            （大方块浮雕最常用，排最前）
+      段 B（比例 < 1/maxh，格子满高的细条）—— 按**宽度**分档，从大到小
+    """
+    if r >= 1.0 / maxh:
+        h = min(1.0 / r, maxh)                 # 显示高度倍率
+        b = (0 if h >= 1.8 else 1 if h >= 1.4 else 2 if h >= 1.0 else
+             3 if h >= 0.6 else 4)
+        return (0, b, -h)
+    w = r * maxh                                # 宽度受限时的宽度倍率
+    b = 0 if w >= 0.7 else 1 if w >= 0.45 else 2 if w >= 0.25 else 3
+    return (1, b, -w)
+
+
+def sort_emboss(items, maxh=2.5, min_bucket=25):
+    """压花按尺寸分档排序；项数太少的档自动并入前一档，避免出现碎档。
+
+    返回 (排好序的 items, 每项所属的最终档号)
+    """
+    keyed = sorted(((emboss_sort_key(it['thumbRatio'] or 1.0, maxh), it) for it in items),
+                   key=lambda x: x[0])
+    counts = {}
+    for k, _ in keyed:
+        counts[k[:2]] = counts.get(k[:2], 0) + 1
+    # 合并小档：remap 把原始档号映射到最终档号
+    remap = {}
+    prev = -1
+    for key in sorted(counts):
+        if prev >= 0 and counts[key] < min_bucket:
+            remap[key] = prev
+        else:
+            prev += 1
+            remap[key] = prev
+    keyed.sort(key=lambda x: (remap[x[0][:2]], x[0]))
+    out = []
+    for k, it in keyed:
+        it['sizeBucket'] = remap[k[:2]]
+        out.append(it)
+    return out
+
+
 def main():
     if os.path.exists(DST):
         shutil.rmtree(DST)
@@ -260,13 +305,11 @@ def main():
                             [transparent] * len(files), [ck] * len(files))
             items = [c[0] for c in chunks]
         if ck == 'emboss':
-            # 压花排序：1324 项形状差异 30 倍，按文件名排会让同一行高的矮的混排，
-            # 行内下方留一大块空白。
-            # 按「与方形的接近度」排（|log(比例)| 升序）：
-            #   - 近方形的浮雕（最常用、最好看）排最前
-            #   - 极细的「子门」件排最后（它们在网格里只有十几像素宽，看不清）
-            #   - 同一行内比例接近 -> 高度接近 -> 行内几乎不留白
-            items.sort(key=lambda it: abs(math.log(it['thumbRatio'] or 1)))
+            # 压花按**显示尺寸分档**排序：1324 项形状差 30 倍，
+            # 按文件名排或连续渐变排都会显得杂乱。
+            # 分档后大小相近的集中在一档，每档内高度一致 -> 网格整齐、分类可辨。
+            maxh = THUMB_PLAN.get(ck, {}).get('maxH') or 2.5
+            items = sort_emboss(items, maxh)
         group_ratio = THUMB_PLAN.get(ck, {}).get('ratio') or 1.0
         group_maxh = THUMB_PLAN.get(ck, {}).get('maxH') or 1.0
         # 资源 URL 加内容版本号：素材重建后内容变了但文件名没变，
