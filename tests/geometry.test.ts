@@ -102,9 +102,18 @@ describe('素材索引', () => {
   })
 
   it.each(cats)('%s 的每个缩略图与预览图文件都存在', (c) => {
+    // 资源 URL 带 ?v=<内容版本号>（防浏览器缓存旧素材），查文件时要去掉 query
+    const diskPath = (url: string) => path.join(ROOT, 'public', url.split('?')[0])
     for (const it of catalog[c].items) {
-      expect(fs.existsSync(path.join(ROOT, 'public', it.thumb)), `缺少 ${it.thumb}`).toBe(true)
-      expect(fs.existsSync(path.join(ROOT, 'public', it.prev)), `缺少 ${it.prev}`).toBe(true)
+      expect(fs.existsSync(diskPath(it.thumb)), `缺少 ${it.thumb}`).toBe(true)
+      expect(fs.existsSync(diskPath(it.prev)), `缺少 ${it.prev}`).toBe(true)
+    }
+  })
+
+  it.each(cats)('%s 的资源 URL 都带内容版本号（素材重建后浏览器必须重新拉）', (c) => {
+    for (const it of catalog[c].items) {
+      expect(it.thumb).toMatch(/\?v=[0-9a-f]{8}$/)
+      expect(it.prev).toMatch(/\?v=[0-9a-f]{8}$/)
     }
   })
 

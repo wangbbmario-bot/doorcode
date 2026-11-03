@@ -8,7 +8,7 @@
 
 缩略图用于选择网格，预览图用于实时合成与 AI 生图参考。
 """
-import json, math, os, shutil, sys, re
+import hashlib, json, math, os, shutil, sys, re
 from concurrent.futures import ProcessPoolExecutor
 from PIL import Image, ImageChops
 
@@ -95,6 +95,55 @@ def white_to_alpha(im: Image.Image) -> Image.Image:
     return rgba
 
 
+def strip_light_border(im, thresh=225, dark=200, guard=0.15):
+    """从四边向内切掉**连续的浅色带**（电商产品图的白边）。
+
+    判定用「行/列的平均亮度」而不是「浅色像素占比」：
+    很多素材的白边是白->灰的渐变（255 渐变到 234），
+    按像素占比判定会卡在渐变中间一行，导致整条白边都切不掉。
+
+    保护：某行/列里「明显是内容」的像素超过 guard 比例就停止切，
+    避免把拉手浅色高光、浮雕边缘这类真实内容当成白边切掉。
+
+    只切边缘连续带，中间的浅色内容不动。
+    """
+    w, h = im.size
+    if w < 8 or h < 8:
+        return im
+    g = im.convert('L')
+    # BOX 降采样 -> 每行/每列的平均亮度
+    rd = list(g.resize((1, h), Image.BOX).getdata())
+    cd = list(g.resize((w, 1), Image.BOX).getdata())
+    # 深色掩码：明显是内容的像素
+    dark_mask = im.convert('L').point(lambda p: 255 if p < dark else 0)
+    rdark = list(dark_mask.resize((1, h), Image.BOX).getdata())
+    cdark = list(dark_mask.resize((w, 1), Image.BOX).getdata())
+
+    def ok(avg, dk, limit):
+        return avg >= thresh and dk < guard * limit
+
+    top = 0
+    while top < h and ok(rd[top], rdark[top], 255):
+        top += 1
+    bot = h
+    while bot > top and ok(rd[bot - 1], rdark[bot - 1], 255):
+        bot -= 1
+    left = 0
+    while left < w and ok(cd[left], cdark[left], 255):
+        left += 1
+    right = w
+    while right > left and ok(cd[right - 1], cdark[right - 1], 255):
+        right -= 1
+    if top == 0 and bot == h and left == 0 and right == w:
+        return im
+    # 防护：剥太狠（内容几乎没了）就放弃，保留原图
+    if (right - left) < 8 or (bot - top) < 8:
+        return im
+    if (right - left) * (bot - top) < 0.02 * w * h:
+        return im
+    return im.crop((left, top, right, bot))
+
+
 def trim_white(im, thr=245):
     """裁掉白底产品图四周的白边，让主体在缩略图里更大"""
     bg = Image.new('RGB', im.size, (255, 255, 255))
@@ -130,6 +179,7 @@ def process(cat_dir: str, out_dir: str, files: list, transparent: bool = False, 
         orig = im.copy() if plan.get('trim') else im
         if plan.get('trim'):
             im = trim_white(im)
+            im = strip_light_border(im)
         cw0, ch0 = im.size
         ratio = plan['ratio']
         if ratio is None or plan['mode'] == 'contain':
@@ -219,9 +269,19 @@ def main():
             items.sort(key=lambda it: abs(math.log(it['thumbRatio'] or 1)))
         group_ratio = THUMB_PLAN.get(ck, {}).get('ratio') or 1.0
         group_maxh = THUMB_PLAN.get(ck, {}).get('maxH') or 1.0
+        # 资源 URL 加内容版本号：素材重建后内容变了但文件名没变，
+        # 浏览器会继续用缓存里的旧图（表现为「改了还是有白边」）。
+        # 版本号按分类算 —— 只有真正变了的分类才需要重新下载。
+        payload = json.dumps(
+            [[it['name'], it['w'], it['h'], it['ratio'], it['thumbRatio']] for it in items],
+            ensure_ascii=False, sort_keys=True)
+        version = hashlib.md5(payload.encode('utf-8')).hexdigest()[:8]
+        for it in items:
+            it['thumb'] = f"{it['thumb']}?v={version}"
+            it['prev'] = f"{it['prev']}?v={version}"
         catalog[ck] = {'key': ck, 'label': label, 'items': items,
                        'thumbRatio': group_ratio, 'maxH': group_maxh}
-        print(f'{label}({ck}): {len(items)} 项')
+        print(f'{label}({ck}): {len(items)} 项  v={version}')
 
     with open('/Users/qi/Desktop/doorcode/public/catalog.json', 'w', encoding='utf-8') as f:
         json.dump(catalog, f, ensure_ascii=False, separators=(',', ':'))
