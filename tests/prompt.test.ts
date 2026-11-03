@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { cleanName, buildPrompt } from '../src/lib/compose'
+import { hasAssetName, buildPrompt } from '../src/lib/compose'
 import type { Catalog, FaceSpec, Selection } from '../src/types'
 
 const item = (name: string, group: string) => ({
@@ -56,45 +56,20 @@ const face = {
   prev: 'p',
 } as unknown as FaceSpec
 
-describe('cleanName（BUG: ARK 输入审核误杀产品型号编号）', () => {
-  it('剥掉 XDD-xxxx 编号', () => {
-    expect(cleanName('XDD-1801皇冠小门头')).toBe('皇冠小门头')
-    expect(cleanName('XDD-15011帝王边框')).toBe('帝王边框')
+describe('hasAssetName（prompt 里不能出现素材名）', () => {
+  const names = ['XDD-1805事事顺心门头', 'XDD-1603三生有幸', '818灰红古铜', '320加高上下加小模欧式花纹']
+
+  it('能识别出文本里的素材名', () => {
+    expect(hasAssetName('门头替换为 Image 2 所示的「事事顺心门头」样式', names)).toBe(true)
+    expect(hasAssetName('Image 2 所示的横向铜质花纹装饰带样式', names)).toBe(false)
   })
 
-  it('剥掉开头纯数字编号与材质后缀', () => {
-    expect(cleanName('1816红古铜_正宗304')).toBe('红古铜')
-    expect(cleanName('1819本色_正宗304')).toBe('本色')
-    expect(cleanName('9021太空灰长款')).toBe('太空灰长款')
+  it('剥掉 XDD 编号后的名字也能识别', () => {
+    expect(hasAssetName('三生有幸', names)).toBe(true)
   })
 
-  it('中文名原样保留', () => {
-    expect(cleanName('几何凹槽')).toBe('几何凹槽')
-    expect(cleanName('镜面玫瑰金')).toBe('镜面玫瑰金')
-  })
-
-  it('纯编号素材（A01/B10/K01）被剥成空串', () => {
-    expect(cleanName('A01')).toBe('')
-    expect(cleanName('B10')).toBe('')
-    expect(cleanName('K01')).toBe('')
-  })
-
-  it('结果里不含任何 3 位以上数字', () => {
-    for (const n of [
-      'XDD-1801皇冠小门头',
-      '1816红古铜_正宗304',
-      '9021太空灰长款',
-      '1.2厚实鸭蛋拉手本色',
-      '304立体金钱玫瑰金无指纹',
-      '8K喷砂哑光',
-    ]) {
-      expect(cleanName(n)).not.toMatch(/\d{3,}/)
-    }
-  })
-
-  it('剥掉材质后缀后仍保留可读描述', () => {
-    expect(cleanName('304立体金钱玫瑰金无指纹')).toContain('立体金钱')
-    expect(cleanName('1.2厚实鸭蛋拉手本色')).toContain('厚实鸭蛋拉手')
+  it('过短的名字不误报（如 A01 这种纯编号）', () => {
+    expect(hasAssetName('A01 门头', ['A01'])).toBe(false)
   })
 })
 
@@ -139,9 +114,17 @@ describe('buildPrompt', () => {
     expect(prompt).toContain('第 3 扇门的中部区域')
   })
 
-  it('保留可读中文描述', () => {
-    expect(prompt).toContain('皇冠小门头')
-    expect(prompt).toContain('几何凹槽')
+  it('prompt 里不出现任何素材中文名（模型会把名字画成画面文字）', () => {
+    // 实测踩过：「事事顺心门头」被画到了门楣上
+    expect(prompt).not.toContain('皇冠小门头')
+    expect(prompt).not.toContain('几何凹槽')
+    // 一律改用 Image N 引用
+    expect(prompt).toContain('Image 2')
+  })
+
+  it('prompt 里不出现任何型号编号（ARK 输入审核会误杀）', () => {
+    expect(prompt).not.toMatch(/XDD[-_]?\d+/i)
+    expect(prompt).not.toMatch(/\d{3,}/)
   })
 
   it('包含写实与无水印要求', () => {
@@ -222,5 +205,70 @@ describe('buildPrompt 必须包含所有已配置的压花（不依赖待选位�
     expect(p).toContain('上、下区域')
     expect(p).toContain('上下对称')
     expect(p).toContain('同一款纹样')
+  })
+
+  it('写明门扇数与左右对称关系（防止 AI 改变门扇数量）', () => {
+    const sel: Selection = {
+      face: '六扇门',
+      head: null,
+      pillarL: null,
+      pillarR: null,
+      lock: null,
+      color: null,
+      emboss: {},
+    }
+    const p = buildPrompt(face, sel, catalog, new Map())
+    expect(p).toContain('本门共 6 扇')
+    expect(p).toContain('左右各 3 扇')
+    expect(p).toContain('必须严格对称')
+  })
+
+  it('写明三个部件的形态与位置（结构约束）', () => {
+    const sel: Selection = {
+      face: '六扇门',
+      head: null,
+      pillarL: null,
+      pillarR: null,
+      lock: null,
+      color: null,
+      emboss: {},
+    }
+    const p = buildPrompt(face, sel, catalog, new Map())
+    expect(p).toContain('门楣上是一条通宽的横向装饰带')
+    expect(p).toContain('门框左右两侧各有一条通高的细长竖条装饰')
+    expect(p).toContain('一对成对的拉手')
+    expect(p).toContain('以 Image 1 为准')
+  })
+
+  it('有压花时写明分区面积占比与留白间隙', () => {
+    const sel: Selection = {
+      face: '六扇门',
+      head: null,
+      pillarL: null,
+      pillarR: null,
+      lock: null,
+      color: null,
+      emboss: { '1:mid': 'XDD-101' },
+    }
+    const p = buildPrompt(face, sel, catalog, new Map())
+    expect(p).toContain('顶部一条窄饰带约占门扇面积 10%')
+    expect(p).toContain('中部主纹样区约占 38%')
+    expect(p).toContain('底部一块小饰块约占 13%')
+    expect(p).toContain('留白间隙')
+    expect(p).toContain('不要把纹样连成一片')
+  })
+
+  it('没有压花时不写分区比例（避免描述不存在的装饰）', () => {
+    const sel: Selection = {
+      face: '六扇门',
+      head: null,
+      pillarL: null,
+      pillarR: null,
+      lock: null,
+      color: null,
+      emboss: {},
+    }
+    const p = buildPrompt(face, sel, catalog, new Map())
+    expect(p).not.toContain('压花分区与比例')
   })
 })
