@@ -41,7 +41,11 @@ export default function EmbossZoneLayer({ face, sel, slots, onToggle, onClear }:
                 e.stopPropagation()
                 onToggle({ leaf: leaf.i, zone: zk })
               }}
-              title={`第 ${leaf.i} 扇 · ${ZONE_LABEL[zk]}`}
+              title={
+                zk === 'mid'
+                  ? `第 ${leaf.i} 扇 · ${ZONE_LABEL[zk]}`
+                  : `第 ${leaf.i} 扇 · ${ZONE_LABEL[zk]}（上下对称，选一次即两处一起配）`
+              }
             >
               {isActive && <span className="zone-tag">{leaf.i}-{ZONE_LABEL[zk]}</span>}
               {has && (

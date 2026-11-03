@@ -113,17 +113,19 @@ describe('reducer · 槽位与压花', () => {
     s = reducer(s, actions.toggleSlot({ leaf: 3, zone: 'top' }))
     s = reducer(s, actions.toggleSlot({ leaf: 3, zone: 'mid' }))
     s = reducer(s, actions.pickAsset('emboss', item('A01')))
-    expect(s.sel.emboss).toEqual({ '3:top': 'A01', '3:mid': 'A01' })
+    // 点「上」联动带上「下」，所以上/中/下三处都是同一款压花
+    expect(s.sel.emboss).toEqual({ '3:top': 'A01', '3:bottom': 'A01', '3:mid': 'A01' })
     expect(s.slots).toEqual([])
   })
 
-  it('clearSlot 只清那一个位置', () => {
+  it('clearSlot 清上/下时上下一起清', () => {
     let s = baseState()
     s = reducer(s, actions.toggleSlot({ leaf: 3, zone: 'top' }))
     s = reducer(s, actions.toggleSlot({ leaf: 3, zone: 'mid' }))
     s = reducer(s, actions.pickAsset('emboss', item('A01')))
     s = reducer(s, actions.clearSlot({ leaf: 3, zone: 'top' }))
     expect(s.sel.emboss['3:top']).toBeUndefined()
+    expect(s.sel.emboss['3:bottom']).toBeUndefined()
     expect(s.sel.emboss['3:mid']).toBe('A01')
   })
 })

@@ -110,7 +110,16 @@ export function buildPrompt(
       const item = findItem(catalog, 'emboss', sel.emboss[slotId(s)])
       if (!item) continue
       const i = refIndex.get(`emboss:${item.name}`)
-      if (i) {
+      // 上下联动：同门扇的 top/bottom 是同一份配置，合并成一条描述
+      const hasTop = slotList.some((x) => x.leaf === s.leaf && x.zone === 'top')
+      const hasBottom = slotList.some((x) => x.leaf === s.leaf && x.zone === 'bottom')
+      if (s.zone === 'bottom' && hasTop) continue
+      const linked = s.zone === 'top' && hasBottom
+      if (linked) {
+        lines.push(
+          `- 第 ${s.leaf} 扇门的上、下区域（上下对称，用同一款纹样），按 ${refPhrase(i, item.name)} 的纹样精修。`,
+        )
+      } else if (i) {
         lines.push(
           `- 第 ${s.leaf} 扇门的${zoneName[s.zone]}区域，按 ${refPhrase(i, item.name)} 的纹样精修。`,
         )

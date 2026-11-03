@@ -11,32 +11,38 @@ import {
 } from '../src/lib/selection'
 import type { Slot } from '../src/types'
 
-describe('槽位选择（BUG: 同一扇门可连续选上/中/下）', () => {
+describe('槽位选择（同一扇门的上/下对称联动，中部独立）', () => {
   const top: Slot = { leaf: 3, zone: 'top' }
   const mid: Slot = { leaf: 3, zone: 'mid' }
   const bottom: Slot = { leaf: 3, zone: 'bottom' }
   const other: Slot = { leaf: 4, zone: 'mid' }
 
-  it('点一次是选中', () => {
-    expect(toggleSlot([], top)).toEqual([top])
+  it('点「上」会同时选中上、下（上下对称，只需选一次压花）', () => {
+    expect(toggleSlot([], top)).toEqual([top, bottom])
   })
 
-  it('再点一次是取消', () => {
-    expect(toggleSlot([top], top)).toEqual([])
+  it('点「下」同样会同时选中上、下', () => {
+    expect(toggleSlot([], bottom)).toEqual([top, bottom])
   })
 
-  it('可以连续选中同一扇门的上中下三个位置', () => {
-    let s = toggleSlot([], top)
-    s = toggleSlot(s, mid)
-    s = toggleSlot(s, bottom)
+  it('再点一次是取消（上下一起取消）', () => {
+    expect(toggleSlot([top, bottom], top)).toEqual([])
+  })
+
+  it('中部独立，不带上/下', () => {
+    expect(toggleSlot([], mid)).toEqual([mid])
+  })
+
+  it('上/下 + 中部 可以一起选中', () => {
+    const s = toggleSlot(toggleSlot([], top), mid)
     expect(s).toHaveLength(3)
-    expect(s.map((x) => x.zone)).toEqual(['top', 'mid', 'bottom'])
+    expect(s.map((x) => x.zone)).toEqual(['top', 'bottom', 'mid'])
   })
 
   it('不同门扇的位置互不影响', () => {
     const s = toggleSlot(toggleSlot([], top), other)
-    expect(s).toHaveLength(2)
-    expect(toggleSlot(s, other)).toEqual([top])
+    expect(s).toHaveLength(3) // top + bottom + other
+    expect(toggleSlot(s, other)).toEqual([top, bottom])
   })
 })
 
@@ -56,6 +62,14 @@ describe('压花应用与取消（BUG6: 已选压花右上角 X）', () => {
     expect(after['3:top']).toBe('几何凹槽')
     expect(after['3:mid']).toBeUndefined()
     expect(after['3:bottom']).toBe('几何凹槽')
+  })
+
+  it('取消上/下时上下一起清（它们是同一份配置）', () => {
+    const e = applyEmboss({}, [s1, s2, s3], '几何凹槽')
+    const after = clearEmboss(e, s1)
+    expect(after['3:top']).toBeUndefined()
+    expect(after['3:bottom']).toBeUndefined()
+    expect(after['3:mid']).toBe('几何凹槽') // 中部独立，不受影响
   })
 
   it('取消不存在的压花不改变对象引用（避免无谓重渲染）', () => {

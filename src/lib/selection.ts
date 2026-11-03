@@ -47,12 +47,29 @@ export function pruneRightHalf(sel: Selection, face: FaceSpec): Selection {
   return { ...sel, emboss: kept }
 }
 
-/** 切换槽位选中状态（同一扇门的上/中/下可连续选中） */
+/**
+ * 切换槽位选中状态
+ *
+ * 同一扇门的**上/下部分造型对称**，压花自然也是对称的 ——
+ * 所以点「上」或点「下」都是**同时选中这两处**，只需选一次压花；
+ * 中部独立，可另配。
+ *
+ * 判定以「被点的那个槽位」当前状态为准：
+ * 点「上」时若上已选 -> 上下一起取消；否则 -> 上下一起选中。
+ */
 export function toggleSlot(slots: Slot[], s: Slot): Slot[] {
   const id = slotId(s)
-  return slots.some((p) => slotId(p) === id)
-    ? slots.filter((p) => slotId(p) !== id)
-    : [...slots, s]
+  if (s.zone === 'mid') {
+    return slots.some((p) => slotId(p) === id)
+      ? slots.filter((p) => slotId(p) !== id)
+      : [...slots, s]
+  }
+  const top: Slot = { leaf: s.leaf, zone: 'top' }
+  const bottom: Slot = { leaf: s.leaf, zone: 'bottom' }
+  const ids = [slotId(top), slotId(bottom)]
+  const clicked = slots.some((p) => slotId(p) === id)
+  const rest = slots.filter((p) => !ids.includes(slotId(p)))
+  return clicked ? rest : [...rest, top, bottom]
 }
 
 /** 把压花应用到所有已选槽位 */
@@ -80,11 +97,24 @@ export function effectiveEmboss(
   return undefined
 }
 
-/** 清除某个槽位的压花（槽位本身保持选中，可直接换别的压花） */
+/**
+ * 清除某个槽位的压花（槽位本身保持选中，可直接换别的压花）
+ *
+ * 上/下联动：清掉一处即上下两处一起清（它们本来就是同一份配置）。
+ */
 export function clearEmboss(
   emboss: Record<string, string>,
   s: Slot,
 ): Record<string, string> {
+  if (s.zone !== 'mid') {
+    const topId = slotId({ leaf: s.leaf, zone: 'top' })
+    const botId = slotId({ leaf: s.leaf, zone: 'bottom' })
+    if (!emboss[topId] && !emboss[botId]) return emboss
+    const next = { ...emboss }
+    delete next[topId]
+    delete next[botId]
+    return next
+  }
   const id = slotId(s)
   if (!emboss[id]) return emboss
   const next = { ...emboss }
@@ -250,12 +280,17 @@ export function buildConfigEntries(
     if (faceSpec && !isLeftHalf(faceSpec, s.leaf)) continue
     const item = nameOf('emboss', s.name)
     if (!item) continue
+    const hasTop = slots.some((x) => x.leaf === s.leaf && x.zone === 'top')
+    const hasBottom = slots.some((x) => x.leaf === s.leaf && x.zone === 'bottom')
+    // 上下联动：同门扇的 top/bottom 是同一份配置，清单里合并成一条
+    if (s.zone === 'bottom' && hasTop) continue
+    const linked = s.zone === 'top' && hasBottom
     out.push({
       key: `emboss:${s.leaf}:${s.zone}`,
       group: 'emboss',
       label: GROUP_LABEL.emboss,
       value: item,
-      detail: `第 ${s.leaf} 扇 · ${ZONE_CN[s.zone]}`,
+      detail: linked ? `第 ${s.leaf} 扇 · 上/下` : `第 ${s.leaf} 扇 · ${ZONE_CN[s.zone]}`,
       slot: { leaf: s.leaf, zone: s.zone },
     })
   }

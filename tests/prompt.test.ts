@@ -187,7 +187,7 @@ describe('buildPrompt 必须包含所有已配置的压花（不依赖待选位�
     expect(p).toContain('镜像')
   })
 
-  it('压花按「门扇号 → 上中下」排序', () => {
+  it('压花按「门扇号 → 上中下」排序，上下对称合并成一条', () => {
     const sel: Selection = {
       face: '六扇门',
       head: null,
@@ -198,11 +198,29 @@ describe('buildPrompt 必须包含所有已配置的压花（不依赖待选位�
       emboss: { '2:bottom': '几何凹槽', '1:bottom': '几何凹槽', '1:top': 'XDD-101' },
     }
     const p = buildPrompt(face, sel, catalog, new Map())
-    const i1t = p.indexOf('第 1 扇门的上部区域')
-    const i1b = p.indexOf('第 1 扇门的下部区域')
-    const i2b = p.indexOf('第 2 扇门的下部区域')
-    expect(i1t).toBeGreaterThan(-1)
-    expect(i1t).toBeLessThan(i1b)
-    expect(i1b).toBeLessThan(i2b)
+    // 第 1 扇上+下是同一份配置 -> 合并成一条
+    const i1 = p.indexOf('第 1 扇门的上、下区域')
+    const i2 = p.indexOf('第 2 扇门的下部区域')
+    expect(i1).toBeGreaterThan(-1)
+    expect(i1).toBeLessThan(i2)
+    // 不再单独描述上部/下部两条
+    expect(p).not.toContain('第 1 扇门的上部区域')
+    expect(p).not.toContain('第 1 扇门的下部区域')
+  })
+
+  it('上/下合并时说明是上下对称、用同一款纹样', () => {
+    const sel: Selection = {
+      face: '六扇门',
+      head: null,
+      pillarL: null,
+      pillarR: null,
+      lock: null,
+      color: null,
+      emboss: { '1:top': 'XDD-101', '1:bottom': 'XDD-101' },
+    }
+    const p = buildPrompt(face, sel, catalog, new Map())
+    expect(p).toContain('上、下区域')
+    expect(p).toContain('上下对称')
+    expect(p).toContain('同一款纹样')
   })
 })
