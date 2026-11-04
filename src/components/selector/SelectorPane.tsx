@@ -37,10 +37,29 @@ function fuzzy(hay: string, needle: string): boolean {
   return true
 }
 
+/** 放大镜图标（用 SVG 不用 emoji：emoji 各平台渲染风格不统一） */
+function SearchIcon() {
+  return (
+    <svg
+      width="15"
+      height="15"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.4"
+      strokeLinecap="round"
+      aria-hidden="true"
+    >
+      <circle cx="11" cy="11" r="7" />
+      <line x1="16.2" y1="16.2" x2="21" y2="21" />
+    </svg>
+  )
+}
+
 /**
  * 元素选择区（右栏）
  *
- * 结构：搜索框 + 分类 tabs + 素材网格（虚拟滚动）
+ * 结构：导航行（一级分类 + 搜索）+ 提示 + 二级分类 + 素材网格（虚拟滚动）
  * 素材过滤规则（收藏优先 + 模糊搜索）在这里，网格只管渲染。
  */
 export default function SelectorPane({
@@ -60,6 +79,14 @@ export default function SelectorPane({
   const [zoomItem, setZoomItem] = useState<CatalogItem | null>(null)
   // 二级分类（压花的尺寸档）：null = 全部，-1 = 收藏
   const [bucket, setBucket] = useState<number | null>(null)
+  /**
+   * 搜索默认收成图标按钮，点开才占满整行。
+   *
+   * 为什么不让搜索框常驻：手机横屏下 6 个一级分类必须**一屏全露**
+   * （否则切个分类要先横滑一段），搜索是低频操作 —— 让位给分类。
+   * 展开时搜索框**替换**分类行（不是叠在上面），高度不变、不跳版。
+   */
+  const [searchOpen, setSearchOpen] = useState(false)
 
   // 切换主分类时回到「全部」
   useEffect(() => {
@@ -108,14 +135,41 @@ export default function SelectorPane({
 
   return (
     <div className="selector-pane">
-      <SearchBar value={query} onChange={onQuery} />
-      <CategoryTabs catalog={catalog} active={activeCat} onChange={onCat} />
+      {/* 导航行：常态是「一级分类 + 搜索图标」；点开搜索后换成「搜索框 + 取消」 */}
+      <div className="nav-row">
+        {searchOpen ? (
+          <>
+            <SearchBar value={query} onChange={onQuery} autoFocus />
+            <button
+              className="search-close"
+              onClick={() => {
+                setSearchOpen(false)
+                onQuery('')
+              }}
+            >
+              取消
+            </button>
+          </>
+        ) : (
+          <>
+            <CategoryTabs catalog={catalog} active={activeCat} onChange={onCat} />
+            <button
+              className="search-toggle"
+              onClick={() => setSearchOpen(true)}
+              aria-label="搜索素材"
+              title="搜索素材"
+            >
+              <SearchIcon />
+            </button>
+          </>
+        )}
+      </div>
 
       {activeCat === 'emboss' && (
         <div className="tip">
           {slotCount > 0
-            ? `点击缩略图，将压花应用到已选的 ${slotCount} 个位置；点右上角放大镜看大图`
-            : '先在左侧点击门上的上/中/下位置，再选择压花'}
+            ? `应用到已选的 ${slotCount} 个位置 · 点右上角 ⤢ 看大图`
+            : '先在左侧点门上的上/中/下位置，再选压花'}
         </div>
       )}
 

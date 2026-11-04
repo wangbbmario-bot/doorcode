@@ -390,20 +390,33 @@ body.dragging {
   min-width: 0;
 }
 
+/* 导航行：一级分类 + 搜索图标同排。
+   手机横屏下 6 个一级分类必须一屏全露（否则切分类得先横滑一段），
+   所以搜索默认收成图标，点开才占满整行 —— 搜索是低频操作，让位给分类。 */
+.nav-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
 .search-row {
   position: relative;
-  padding: 10px 12px 8px;
-  flex: 0 0 auto;
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0;
 }
 
 .search {
   width: 100%;
-  padding: 10px 32px 10px 14px;
+  padding: 6px 28px 6px 11px;
   border-radius: var(--r);
   border: 1px solid var(--line);
   background: var(--bg-3);
   color: var(--text);
-  font-size: 14px;
+  font-size: 13px;
   outline: none;
 }
 
@@ -413,24 +426,63 @@ body.dragging {
 
 .clear {
   position: absolute;
-  right: 20px;
+  right: 7px;
   top: 50%;
   transform: translateY(-40%);
   background: none;
   border: none;
   color: var(--text-dim);
-  font-size: 20px;
+  font-size: 18px;
   cursor: pointer;
   line-height: 1;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+}
+
+.search-toggle {
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line);
+  background: var(--bg-3);
+  color: var(--text-dim);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.search-toggle:hover {
+  color: var(--bronze-hi);
+  border-color: var(--bronze);
+}
+
+.search-close {
+  flex: 0 0 auto;
+  height: 30px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  background: var(--bg-3);
+  color: var(--text-dim);
+  border-radius: 8px;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
 }
 
 .cat-row {
   display: flex;
-  gap: 6px;
-  padding: 0 12px 8px;
-  flex: 0 0 auto;
+  gap: 5px;
+  flex: 1 1 auto;
+  min-width: 0;
   overflow-x: auto;
   scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
 }
 
 .cat-row::-webkit-scrollbar {
@@ -443,9 +495,10 @@ body.dragging {
   background: var(--bg-3);
   color: var(--text-dim);
   border-radius: 999px;
-  padding: 6px 14px;
+  padding: 5px 12px;
   font-size: 13px;
   cursor: pointer;
+  white-space: nowrap;
 }
 
 .cat.on {
@@ -458,11 +511,12 @@ body.dragging {
 /* ---------- 二级分类（压花的尺寸档） ---------- */
 .sub-tabs {
   display: flex;
-  gap: 6px;
-  padding: 0 12px 8px;
+  gap: 5px;
+  padding: 0 12px 6px;
   flex: 0 0 auto;
   overflow-x: auto;
   scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
 }
 
 .sub-tabs::-webkit-scrollbar {
@@ -475,8 +529,8 @@ body.dragging {
   background: transparent;
   color: var(--text-dim);
   border-radius: 999px;
-  padding: 3px 11px;
-  font-size: 12px;
+  padding: 3px 10px;
+  font-size: 11px;
   cursor: pointer;
   white-space: nowrap;
 }
@@ -499,14 +553,19 @@ body.dragging {
   cursor: default;
 }
 
+/* 提示条：压成**一行细字**。
+   原来是一整块带边框+背景的盒子（34px），在矮屏上纯属浪费 ——
+   左边一根铜色竖条就能表达「这是提示」，文字单行放不下就省略号。 */
 .tip {
-  margin: 0 12px 8px;
-  padding: 7px 10px;
-  border-radius: 8px;
-  background: rgba(232, 179, 131, 0.1);
-  border: 1px solid rgba(232, 179, 131, 0.3);
+  margin: 0 12px 6px;
+  padding: 0 0 0 8px;
+  border-left: 2px solid var(--bronze);
   color: var(--bronze-hi);
-  font-size: 12px;
+  font-size: 11px;
+  line-height: 16px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   flex: 0 0 auto;
 }
 
@@ -1501,6 +1560,32 @@ body.dragging {
     display: none;
   }
 
+  /* 导航行压到底：分类按钮 + 搜索图标挤成一行 */
+  .nav-row {
+    padding: 3px 8px 4px;
+  }
+
+  .cat {
+    padding: 4px 7px;
+    font-size: 12px;
+  }
+
+  /* 提示条：矮屏再收一档 */
+  .tip {
+    margin-bottom: 4px;
+    line-height: 15px;
+  }
+
+  /* 二级分类 chips 瘦身 */
+  .sub-tabs {
+    padding-bottom: 5px;
+  }
+
+  .sub-tab {
+    padding: 2px 9px;
+    font-size: 11px;
+  }
+
   /* 顶栏压缩 */
   .preview-head {
     padding: 6px 10px;
@@ -1521,18 +1606,26 @@ body.dragging {
     display: none;
   }
 
-  /* 分类 tabs 缩小，让 6 个分类尽量一屏放得下 */
+  /* 分类 tabs 缩小，让 6 个分类尽量一屏放得下。
+     水平 padding 只给 7px：iPhone SE(667px) 右栏只有 323px，
+     6 个分类 + 搜索图标必须挤进同一行，少 1px 就会把「门锁」挤出可视区。 */
   .cat {
-    padding: 5px 8px;
+    padding: 4px 7px;
     font-size: 12px;
+  }
+
+  /* 导航行左右留白收窄 */
+  .nav-row {
+    gap: 5px;
+    padding: 4px 8px 5px;
   }
 
   .cat-row {
     gap: 4px;
-    padding: 0 10px 6px;
-    /* 放不下时右侧渐隐，提示还能往右滑 */
-    -webkit-mask-image: linear-gradient(to right, #000 0, #000 calc(100% - 18px), transparent 100%);
-    mask-image: linear-gradient(to right, #000 0, #000 calc(100% - 18px), transparent 100%);
+    /* 放不下时右侧渐隐，提示还能往右滑。
+       渐隐带收到 10px —— 再宽就会在「6 个刚好放得下」时把「门锁」洗白。 */
+    -webkit-mask-image: linear-gradient(to right, #000 0, #000 calc(100% - 10px), transparent 100%);
+    mask-image: linear-gradient(to right, #000 0, #000 calc(100% - 10px), transparent 100%);
   }
 
   /* 底栏：按钮缩小到能一屏放下（原来 256px 挤进 239px 会溢出） */
@@ -1546,14 +1639,10 @@ body.dragging {
     padding: 5px 8px;
   }
 
-  /* 搜索框压扁 */
-  .search-row {
-    padding: 6px 10px 6px;
-  }
-
+  /* 搜索框压扁（展开态才出现） */
   .search {
-    padding: 7px 28px 7px 11px;
-    font-size: 13px;
+    padding: 5px 26px 5px 10px;
+    font-size: 12px;
   }
 
   /* 门头/门柱/门锁的选中标签在窄屏挤在一起，缩小字号 */
