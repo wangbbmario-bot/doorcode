@@ -292,6 +292,33 @@ src/
 - 配置刷新后丢 → 坑 5
 - 两个视图实时性割裂 → 同一份状态被两个视图分别读取时，一个读实时源、一个读滞后源
 
+## 部署（给客户试用）
+
+**这个项目必须有 Node 后端** —— 生成图片（`/api/generate`）、历史记录（`/api/history`）
+都靠它，纯静态托管会让这两个功能全部失效。`dist/` 只是前端。
+
+```bash
+npm run tunnel      # 一键：构建 -> 起服务(:8787) -> 起 cloudflared 隧道 -> 打印公网链接
+```
+
+首次需要装隧道工具：`brew install cloudflared` 或 `npm i -g cloudflared`。
+
+### 几个必须知道的事
+
+- **临时隧道每次重启链接都会变**，断线即失效。要固定域名得用 Cloudflare Named Tunnel
+  （需自己的域名 + 账号）。
+- **完全公开 = 拿到链接的人都能烧 ARK 额度、翻到所有人的生成记录**。
+  要加保护就设 `SITE_PASSWORD`（见 `server/index.mjs` 的访问口令闸门）：
+  ```bash
+  SITE_PASSWORD='你的口令' npm run tunnel
+  ```
+  客户打开 `https://链接/?k=你的口令` 直接进，地址栏会自动变干净；
+  不带 `?k=` 时会弹框问口令。
+- 生成图和历史落在 `server/generated/`（已被 gitignore）。**这个目录要持久化**，
+  迁到服务器时挂盘，否则重启丢图。
+- ARK key 只在后端读 `.env`，**永远不要打进前端 bundle**。
+  `npm run verify` 的安全检查会盯这一条。
+
 ## 排查顺序
 
 1. 生成失败 → 先看 `server/index.mjs` 的 `[generate]` 日志，再看 ARK 错误码

@@ -15,7 +15,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
-    "verify": "bash scripts/verify.sh"
+    "verify": "bash scripts/verify.sh",
+    "tunnel": "bash scripts/serve-tunnel.sh"
   },
   "dependencies": {
     "express": "^5.3.0",
