@@ -22,7 +22,11 @@ const GROUP_ICON: Record<string, string> = {
  * 放在效果展示区左上角，半透明背景 + 毛玻璃，不遮挡门面
  */
 export default function ConfigPanel({ entries, pendingSlots, onClear, onClearAll }: Props) {
-  const [open, setOpen] = useState(true)
+  // 窄屏（手机横屏）默认收起：展开时浮层会压住门图约 40%，
+  // 收起后只留一行「已配置项 N」，点标题再展开。
+  const [open, setOpen] = useState(
+    () => typeof window === 'undefined' || !window.matchMedia('(max-width: 1000px)').matches,
+  )
 
   return (
     <div className={`config-float ${open ? 'open' : 'closed'}`}>

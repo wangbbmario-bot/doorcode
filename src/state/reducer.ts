@@ -82,6 +82,7 @@ export const initialState: AppState = {
   activeCat: 'face',
   query: '',
   favs: [],
+  // 注：真正的分栏比例在 hooks/useSplitDrag.ts（这个字段是历史遗留，没被用到）
   split: 50,
   preview: null,
   result: null,

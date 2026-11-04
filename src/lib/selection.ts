@@ -194,11 +194,25 @@ export function computeGrid(
  * 否则格子是正方形，图片会被 CSS 的 object-fit 裁掉大半。
  * maxH 是格高上限（相对格宽的倍数），防止 1:10 这种极端比例撑爆一屏。
  */
-export function thumbHeight(cellW: number, thumbRatio: number, maxH = 1): number {
+/**
+ * 缩略图显示高度
+ *
+ * 宽高比 < 1 的纵向素材（门锁 1:2.4、门柱 1:4）要按真实比例给高度，
+ * 否则格子是正方形，图片会被 CSS 的 object-fit 裁掉一大半。
+ *
+ * @param maxH 格高上限（相对格宽的倍数），防止 1:10 这种极端比例撑爆一屏
+ * @param capH 格高绝对上限（px）—— 手机横屏按可见高度封顶，一屏能看两行
+ */
+export function thumbHeight(
+  cellW: number,
+  thumbRatio: number,
+  maxH = 1,
+  capH = Infinity,
+): number {
   const r = thumbRatio || 1
   const byRatio = Math.round(cellW / r)
-  if (r >= 1) return byRatio
-  return Math.min(byRatio, Math.round(cellW * maxH))
+  const h = r >= 1 ? byRatio : Math.min(byRatio, Math.round(cellW * maxH))
+  return Math.min(h, capH)
 }
 
 /** 配置清单条目（对应「我的配置」面板） */

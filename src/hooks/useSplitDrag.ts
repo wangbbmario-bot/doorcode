@@ -6,6 +6,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
  * 返回 split（左栏百分比 20-80）与 startDrag（绑定到分界线）。
  */
 export function useSplitDrag() {
+  // 分栏保持 50/50：门图是按**宽度** fit 的，左栏一窄门就跟着变小，
+  // 而门是演示的主角。素材密度靠「格子高度封顶」解决，不动分栏。
   const [split, setSplit] = useState(50)
   const dragging = useRef(false)
 

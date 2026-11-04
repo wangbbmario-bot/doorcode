@@ -70,8 +70,9 @@ body.dragging {
 }
 
 .divider {
-  width: 14px;
-  flex: 0 0 14px;
+  /* 触摸设备上 14px 不好抓，加宽到 22px */
+  width: 22px;
+  flex: 0 0 22px;
   background: var(--bg-3);
   border-left: 1px solid var(--line);
   border-right: 1px solid var(--line);
@@ -188,10 +189,10 @@ body.dragging {
 /* 压花槽位热区 */
 .zone {
   position: absolute;
-  /* 层级：压花热区 1 < 部件选框 3 < 取消按钮 4
-     门锁选框在中轴上，必然被中央门扇的压花「中」区整块盖住，
-     没有 z-index 时靠 DOM 顺序叠放 → 门锁永远点不到 */
-  z-index: 1;
+  /* 层级：压花热区 3 < 部件选框 5 < 取消按钮 6
+     部件（门头/门柱/门锁）每种只选一次，是高频操作，必须永远点得中；
+     压花槽位允许被门锁视觉框抢掉边缘几个像素（左门锁物理上就落在中央门扇上）。 */
+  z-index: 3;
   border: 1.5px dashed rgba(232, 179, 131, 0.45);
   background: rgba(232, 179, 131, 0.06);
   padding: 0;
@@ -212,6 +213,100 @@ body.dragging {
 
 .zone.filled {
   border-color: rgba(111, 191, 138, 0.75);
+}
+
+/* ---------- 触摸目标放大（手机横屏刚需） ----------
+   门锁热区只有 5px 宽、门柱 7px、压花上下段 9px 高 ——
+   手指根本点不中。视觉框保持原样（不然门会被糊住），
+   用 ::after 做透明的放大命中层。 */
+.zone.part::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: max(100%, 40px);
+  height: max(100%, 40px);
+}
+
+/* 压花的「上/下」段只有 9px 高：向上/向下扩，别往中间扩
+   （往中间扩会跟中段的热区互相抢点击） */
+.zone.z-top::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -14px;
+  bottom: 0;
+}
+
+.zone.z-bottom::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: -14px;
+}
+
+/* 中段本来就 72px 高，不用扩 */
+.zone.z-mid::after {
+  content: none;
+}
+
+/* 标签和 × 要压在命中层（::after）之上。
+   注意：这里只设 z-index，**绝不能改 position** ——
+   position:relative 会覆盖 .zone-tag 的 position:absolute，
+   让标签跑到按钮外面去（曾经把压花槽位整个盖住）。 */
+.zone-tag {
+  z-index: 2;
+  /* 标签只是装饰文字，绝不能拦截点击 ——
+     标签绝对定位在 .stage 里，门窄的时候会飘到别的热区上（曾盖住压花槽位） */
+  pointer-events: none;
+}
+
+/* 门头：命中层**向上扩**（往门楣方向）。
+   门头本来就横向很宽（175px），纵向 13px 偏薄；
+   但不能往下扩 —— 下面就是门扇，压花「上」段的槽位在那儿。 */
+.zone.part-head::after {
+  left: 0;
+  right: 0;
+  top: -18px;
+  bottom: 0;
+  width: auto;
+  height: auto;
+  transform: none;
+}
+
+/* 门锁：命中层**只往右扩**。
+   左门锁的视觉框本身就压在压花第 3 扇的中段上（门锁在门缝左侧的门板上），
+   再往左扩就会抢掉压花槽位。往右扩跨过门缝是安全的 ——
+   左右门锁本来就等价（都写进同一个 sel.lock），被谁抢都一样。 */
+.zone.part-lockL::after,
+.zone.part-lockR::after {
+  left: 0;
+  right: auto;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 44px;
+  height: max(100%, 44px);
+}
+
+/* 门柱：命中层往**外**扩（左侧往左、右侧往右），不侵入门扇的压花槽位 */
+.zone.part-pillarL::after {
+  left: auto;
+  right: 0;
+  transform: translateY(-50%);
+  width: 40px;
+  height: max(100%, 40px);
+}
+
+.zone.part-pillarR::after {
+  left: 0;
+  right: auto;
+  transform: translateY(-50%);
+  width: 40px;
+  height: max(100%, 40px);
 }
 
 .zone-tag {
@@ -494,10 +589,10 @@ body.dragging {
   inset: 0;
   width: 100%;
   height: 100%;
-  /* contain 而不是 cover：格子高度已经按素材真实比例算好了，
-     cover 会把纵向细条（门锁 1:2.4、门柱 1:4、压花长条）再裁掉一大半，
-     表现为「看不全花纹」 */
-  object-fit: contain;
+  /* cover 而不是 contain：格子高度按 maxH 封顶后（门柱/门锁/压花统一 1.6 倍格宽），
+     contain 会让细长素材只占中间一小条、又小又窄；
+     cover 把纹样放大填满格子，细节看得清 —— 看全靠右上角的大图预览。 */
+  object-fit: cover;
   object-position: center;
 }
 
@@ -519,6 +614,7 @@ body.dragging {
   top: 3px;
   width: 22px;
   height: 22px;
+  touch-action: manipulation;
   border-radius: 50%;
   border: none;
   background: rgba(20, 16, 13, 0.55);
@@ -604,8 +700,9 @@ body.dragging {
 /* ---------- BUG: 门头/门柱/门锁 可选框 ---------- */
 .zone.part {
   /* 盖在压花热区之上：门锁选框与中央门扇的压花「中」区在几何上必然重叠，
-     不提层级就点不到门锁（门锁宽约 5px，被盖住后整条都是死区） */
-  z-index: 3;
+     不提层级就点不到门锁（门锁宽约 5px，被盖住后整条都是死区）。
+     门头/门柱/门锁每种只选一次，是高频操作，优先级高于压花槽位。 */
+  z-index: 5;
   border-style: solid;
   border-color: rgba(111, 191, 138, 0.5);
   background: rgba(111, 191, 138, 0.07);
@@ -653,7 +750,7 @@ body.dragging {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  z-index: 4;
+  z-index: 6;
 }
 
 .zone-x:hover {
@@ -669,6 +766,8 @@ body.dragging {
   bottom: 30px;
   width: 22px;
   height: 22px;
+  /* 视觉保持 22（不然会盖住缩略图），命中区扩到 40px */
+  touch-action: manipulation;
   border-radius: 50%;
   border: none;
   background: rgba(20, 16, 13, 0.6);
@@ -881,6 +980,7 @@ body.dragging {
   flex: 0 0 auto;
   width: 22px;
   height: 22px;
+  touch-action: manipulation;
   border-radius: 50%;
   border: 1px solid var(--line);
   background: rgba(20, 16, 13, 0.6);
@@ -1323,4 +1423,161 @@ body.dragging {
 
 .btn.danger:hover {
   background: rgba(226, 114, 91, 0.14);
+}
+
+/* ---------- 小按钮的触摸命中层 ----------
+   视觉 22px 的圆形按钮在手指上偏小，用伪元素把可点区域扩到 40px（视觉不变） */
+.zoom::after,
+.fav::after,
+.ci-x::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 40px;
+  height: 40px;
+}
+
+.zoom,
+.fav {
+  position: absolute;
+  isolation: isolate;
+}
+
+/* ci-x 在 flex 流里，只能 relative —— 绝对定位会把它从布局里摘出去 */
+.ci-x {
+  position: relative;
+  isolation: isolate;
+}
+
+.zoom > *,
+.fav > *,
+.ci-x > * {
+  position: relative;
+  z-index: 2;
+}
+
+/* ==========================================================================
+   矮屏 / 窄屏适配（手机横屏）
+   --------------------------------------------------------------------------
+   手机横屏视口只有 ~300px 高（还要减去 Safari 地址栏），桌面版布局直接塞不下：
+     - 底栏三个按钮换行 -> 占掉 32% 屏高
+     - 分类 tabs 横向溢出 130px -> 「门柱/门锁」够不着
+     - 顶栏「左右对称 · 配左半 N 扇」被压成 18px
+     - 网格状态栏占 11% 屏高，信息价值却很低
+   这里按「矮」和「窄」两个维度分别降级。
+   ========================================================================== */
+
+/* ---------- 矮屏（高度不足）：纵向让位 ---------- */
+@media (max-height: 480px) {
+  /* 底栏不换行：按钮缩小 + 文案精简位 */
+  .preview-foot {
+    flex-wrap: nowrap;
+    padding: 6px 10px;
+    gap: 6px;
+  }
+
+  .preview-foot .btn {
+    padding: 7px 10px;
+    font-size: 12px;
+    white-space: nowrap;
+    flex: 0 0 auto;
+  }
+
+  /* 「已选 N 个位置」不能藏 —— 矮屏也要让用户知道自己选中了什么。
+     压成一行小字，不换行。 */
+  .preview-foot .hint {
+    font-size: 11px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex: 0 1 auto;
+    min-width: 0;
+  }
+
+  /* 网格状态栏：矮屏隐藏（项数/列数在「全部」档标签上也有） */
+  .grid-foot {
+    display: none;
+  }
+
+  /* 顶栏压缩 */
+  .preview-head {
+    padding: 6px 10px;
+    gap: 8px;
+  }
+
+  .zone-toggle {
+    font-size: 11px;
+  }
+}
+
+/* ---------- 窄屏（宽度不足）：横向让位 ----------
+   断点取 1000px：iPhone 横屏（844/932）也会把「左右对称 · 配左半 N 扇」压成
+   十几像素，等于看不见 —— 到 1180（iPad）才放得下完整。 */
+@media (max-width: 1000px) {
+  /* 「左右对称 · 配左半 N 扇」在窄屏必然被压没，直接不显示 */
+  .sym-note {
+    display: none;
+  }
+
+  /* 分类 tabs 缩小，让 6 个分类尽量一屏放得下 */
+  .cat {
+    padding: 5px 8px;
+    font-size: 12px;
+  }
+
+  .cat-row {
+    gap: 4px;
+    padding: 0 10px 6px;
+    /* 放不下时右侧渐隐，提示还能往右滑 */
+    -webkit-mask-image: linear-gradient(to right, #000 0, #000 calc(100% - 18px), transparent 100%);
+    mask-image: linear-gradient(to right, #000 0, #000 calc(100% - 18px), transparent 100%);
+  }
+
+  /* 底栏：按钮缩小到能一屏放下（原来 256px 挤进 239px 会溢出） */
+  .preview-foot .btn {
+    padding: 6px 8px;
+    font-size: 11px;
+  }
+
+  .preview-foot {
+    gap: 5px;
+    padding: 5px 8px;
+  }
+
+  /* 搜索框压扁 */
+  .search-row {
+    padding: 6px 10px 6px;
+  }
+
+  .search {
+    padding: 7px 28px 7px 11px;
+    font-size: 13px;
+  }
+
+  /* 门头/门柱/门锁的选中标签在窄屏挤在一起，缩小字号 */
+  .zone-tag {
+    font-size: 9px;
+    padding: 1px 4px;
+  }
+
+  /* 已配置项浮层：窄屏收窄，别压住门 */
+  .config-float {
+    width: min(200px, 58%);
+  }
+}
+
+/* ---------- 触摸设备：hover 效果失效，改用 active ---------- */
+@media (hover: none) {
+  .zone:hover,
+  .cat:hover,
+  .btn:hover {
+    background: inherit;
+  }
+
+  .zone:hover {
+    background: rgba(232, 179, 131, 0.18);
+    border-color: var(--bronze-hi);
+  }
 }

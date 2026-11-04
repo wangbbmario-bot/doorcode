@@ -61,12 +61,16 @@ THUMB_PLAN = {
     'head':   {'ratio': 4.0,  'mode': 'cover',  'maxH': 1},
     # 门柱：原件是 1:10 的细长柱，裁成方块只能看到顶部一个角（花纹全看不见）。
     # 改成 1:4 的窄高框 + 居中裁 -> 柱身满宽，雕花/文字清晰可辨
-    'pillar': {'ratio': 0.25, 'mode': 'cover', 'trim': True, 'maxH': 4},
-    # 门锁：单个完整产品（拉手），上下裁会切掉握柄和装饰头 -> 1:2.4 框完整贴入
-    'lock':   {'ratio': 0.42, 'mode': 'pad',   'trim': True, 'maxH': 3},
-    # 压花：1324 项各种形状都有，各自保持原比例；格子高度封顶 2.5 倍格宽
+    # maxH = 格子高度上限（相对格宽的倍数）。
+    # 手机横屏上 4 倍格宽 = 544px，一个格子就比整屏还高，列表要滑好几下 ——
+    # 统一封顶到 1.6 倍，列表高度直接减 60%。
+    # 门柱/门锁：保持原比例（完整素材，文件也小得多），
+    # 显示时由前端 object-fit:cover 填满格子并放大 —— 避免构建期和显示期两次裁切
+    'pillar': {'ratio': None, 'mode': 'contain', 'trim': True, 'maxH': 1.6},
+    'lock':   {'ratio': None, 'mode': 'contain', 'trim': True, 'maxH': 1.6},
+    # 压花：1324 项各种形状都有，各自保持原比例；格子高度封顶 1.6 倍格宽
     # trim：15.5% 的压花是带白边的电商产品图，不去白边缩略图顶部会有一条白带
-    'emboss': {'ratio': None, 'mode': 'contain', 'trim': True, 'maxH': 2.5},
+    'emboss': {'ratio': None, 'mode': 'contain', 'trim': True, 'maxH': 1.6},
 }
 
 

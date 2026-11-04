@@ -21,9 +21,6 @@ export default function CategoryTabs({ catalog, active, onChange }: Props) {
           {catalog[k]?.label ?? k}
         </button>
       ))}
-      <button className="cat" title="更多分类">
-        ⋯
-      </button>
     </div>
   )
 }

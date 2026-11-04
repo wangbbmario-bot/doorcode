@@ -30,7 +30,7 @@ export default function EmbossZoneLayer({ face, sel, slots, onToggle, onClear }:
           return (
             <button
               key={id}
-              className={`zone ${isActive ? 'active' : ''} ${has ? 'filled' : ''}`}
+              className={`zone z-${zk} ${isActive ? 'active' : ''} ${has ? 'filled' : ''}`}
               style={{
                 left: `${leaf.x0 * 100}%`,
                 width: `${(leaf.x1 - leaf.x0) * 100}%`,

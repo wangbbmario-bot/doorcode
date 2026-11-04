@@ -82,6 +82,13 @@ export default function AssetGrid({
     setScrollTop(0)
   }, [items])
 
+  /**
+   * 格高的绝对上限：按网格区可见高度封顶。
+   * 手机横屏网格区只有 ~220px，不封顶的话一屏只能看一行；
+   * 封到 55% 刚好一屏两行，列表长度也短一半。
+   */
+  const capH = Math.max(96, Math.round(viewportH * 0.55))
+
   // 行高：按**每行实际的最高格子**算。
   // 压花素材比例从 0.1 到 3.6 都有，若行高统一按最扁的算，
   // 矮素材那一行下方会整块留白（用户看到的「空了一行」）。
@@ -93,12 +100,12 @@ export default function AssetGrid({
       for (let c = 0; c < cols; c++) {
         const it = items[r * cols + c]
         if (!it) break
-        mx = Math.max(mx, thumbHeight(cellW, it.thumbRatio, maxH))
+        mx = Math.max(mx, thumbHeight(cellW, it.thumbRatio, maxH, capH))
       }
       hs.push(mx + NAME_H + GAP)
     }
     return hs
-  }, [items, cols, cellW, maxH])
+  }, [items, cols, cellW, maxH, capH])
 
   // 每行 top 的前缀和（末位 = 总高度）
   const rowTops = useMemo(() => {
@@ -167,13 +174,13 @@ export default function AssetGrid({
                 style={{
                   position: 'absolute',
                   width: cellW,
-                  height: thumbHeight(cellW, it.thumbRatio, maxH) + NAME_H,
+                  height: thumbHeight(cellW, it.thumbRatio, maxH, capH) + NAME_H,
                   transform: `translate(${col * (cellW + GAP)}px, ${rowTops[row] ?? 0}px)`,
                 }}
               >
                 <AssetCell
                   item={it}
-                  imgH={thumbHeight(cellW, it.thumbRatio, maxH)}
+                  imgH={thumbHeight(cellW, it.thumbRatio, maxH, capH)}
                   selected={selectedName === it.name}
                   fav={favSet.has(it.name)}
                   onPick={() => onPick(it)}
