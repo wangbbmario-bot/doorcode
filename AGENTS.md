@@ -303,6 +303,30 @@ npm run tunnel      # 一键：构建 -> 起服务(:8787) -> 起 cloudflared 隧
 
 首次需要装隧道工具：`brew install cloudflared` 或 `npm i -g cloudflared`。
 
+### 正式服务器部署（systemd，不用 Docker）
+
+正式环境不跑隧道，用 systemd 裸跑 Node —— 常驻约 40MB，比再起一个容器省，
+而且没有数据库 → 没有卷、没有 compose project 名、没有迁移这一堆坑。
+
+```bash
+# 本地：构建 → 打包 → scp → 服务器安装，一条命令
+bash deploy/upload.sh 47.107.46.78 root
+# → http://47.107.46.78:8787
+```
+
+`deploy/` 是完整部署包：
+
+| 文件 | 作用 |
+|---|---|
+| `install.sh` | 装 Node 22（锁版本）/ 建 doorcode 专用用户 / npm ci --omit=dev / 装 systemd / 健康检查 |
+| `doorcode.service` | systemd unit（专用用户、只允许写 generated/、崩溃自动重启） |
+| `upload.sh` | 本地侧：build + 打包 + scp + 调 install.sh |
+| `backup.sh` | 备份 `server/generated/`（索引 + 生成图） |
+| `Caddyfile.doorcode` | 配域名时的反代片段 |
+
+**服务器上必须设 `SITE_PASSWORD`** —— 否则公网任何人都能调 `/api/generate` 烧 ARK 额度、
+翻所有人的生成记录。详见 `deploy/README.md`。
+
 ### 几个必须知道的事
 
 - **临时隧道每次重启链接都会变**，断线即失效。要固定域名得用 Cloudflare Named Tunnel

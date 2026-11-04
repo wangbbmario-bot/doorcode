@@ -1,0 +1,44 @@
+[Unit]
+Description=Doorcode · 响当当 XDD 铜门定制（Vite 静态产物 + Express API）
+Documentation=file:///opt/doorcode/deploy/README.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# 专用非登录用户：服务要读 ARK key、要写 server/generated，
+# 没必要拿到 root 权限
+User=doorcode
+Group=doorcode
+WorkingDirectory=/opt/doorcode
+
+# Node 路径（install.sh 装到 /usr/local/node22 并软链到 /usr/local/bin/node）
+ExecStart=/usr/local/bin/node server/index.mjs
+
+Environment=NODE_ENV=production
+Environment=PORT=8787
+# 将来配了域名 + Caddy 反代后，把下面这行打开，
+# 让服务只监听本地，公网只能经 80/443 进来：
+# Environment=HOST=127.0.0.1
+# （注意：server/index.mjs 目前硬编码 listen(PORT, '0.0.0.0')，
+#   要真正只绑本地，需要改成 listen(PORT, process.env.HOST || '0.0.0.0')）
+
+Restart=always
+RestartSec=3
+# 启动慢/崩了都自动拉起
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+StandardOutput=append:/var/log/doorcode/app.log
+StandardError=append:/var/log/doorcode/app.log
+
+# ---- 安全加固 ----
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+# 只有 generated 目录可写（生成图落盘 + 历史索引）
+ReadWritePaths=/opt/doorcode/server/generated
+
+[Install]
+WantedBy=multi-user.target
